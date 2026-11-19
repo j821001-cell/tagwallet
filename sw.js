@@ -2,7 +2,7 @@
  * 페이지 파일은 「저장본 먼저 + 뒤에서 새로 받기」, 도구(CDN)는 「저장본 먼저」.
  * Firebase 자료 통신(firestore/auth)은 건드리지 않는다 — 그쪽은 Firebase 가 알아서 휴대폰에 사본을 둔다.
  * 페이지를 고쳐 올릴 때 CACHE 이름 숫자를 하나 올린다(build-web.ps1 이 자동으로 날짜를 넣는다). */
-const CACHE = "tagwallet-20261119-151920";
+const CACHE = "tagwallet-20261119-162028";
 const CORE = ["./", "index.html", "boot.js", "firebase-config.js", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "tickets/changpa.jpg", "tickets/ttarakyu.jpg"];
 const CDN = [
