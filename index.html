@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>내 태그 지갑</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f1530">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script src="firebase-config.js"></script>
+<script src="boot.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f1530; --panel:#182046; --panel2:#202a5a; --line:#2c3770;
+    --text:#f3f5ff; --muted:#a9b1d6; --accent:#ffb020; --accent2:#4fd1c5; --danger:#ff6b6b;
+    --radius:18px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:"Noto Sans KR",system-ui,sans-serif}
+  body{min-height:100vh;display:flex;justify-content:center}
+  .app{width:100%;max-width:480px;min-height:100vh;display:flex;flex-direction:column;padding-bottom:92px;overflow-x:hidden}
+  header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 8px;gap:8px}
+  .logo{font-family:"Jua",sans-serif;font-size:24px;letter-spacing:.5px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .logo .star{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#ff7a59);display:grid;place-items:center;font-size:16px;color:#1b1b1b}
+  .status{font-size:12px;color:var(--muted);text-align:right}
+  .hero{margin:8px 16px 14px;padding:18px;border-radius:var(--radius);
+    background:linear-gradient(120deg,#ff9a3c,#ff5f6d);box-shadow:0 8px 24px rgba(255,95,109,.25)}
+  .hero h2{margin:0 0 4px;font-family:"Jua",sans-serif;font-size:22px;font-weight:400}
+  .hero p{margin:0;font-size:13px;opacity:.95}
+  .hero.teal{background:linear-gradient(120deg,#36b5aa,#3a6fd8);box-shadow:0 8px 24px rgba(58,111,216,.25)}
+  .hero.violet{background:linear-gradient(120deg,#7a5cff,#d0559c);box-shadow:0 8px 24px rgba(122,92,255,.25)}
+  .section{margin:0 16px 16px;background:var(--panel);border-radius:var(--radius);padding:14px;border:1px solid var(--line)}
+  .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px}
+  .section-head h3{margin:0;font-size:16px;display:flex;align-items:center;gap:8px}
+  .count{font-size:12px;color:var(--muted)}
+  .badge{font-size:11px;color:#0f1530;background:var(--accent2);padding:2px 8px;border-radius:999px;font-weight:700}
+  .carousel{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .carousel::-webkit-scrollbar{display:none}
+  .card{flex:0 0 100%;scroll-snap-align:center;background:var(--panel2);border-radius:14px;overflow:hidden;cursor:pointer;border:1px solid var(--line);position:relative}
+  .card .imgwrap{background:#fff;aspect-ratio:4/3;display:grid;place-items:center}
+  .card img{width:100%;height:100%;object-fit:contain;display:block}
+  .card .meta{display:flex;justify-content:space-between;align-items:center;padding:10px 12px}
+  .card .name{font-weight:700;font-size:15px}
+  .card .note{font-size:12px;color:var(--muted)}
+  .card .tap{font-size:11px;color:var(--accent)}
+  .dots{display:flex;justify-content:center;gap:6px;margin-top:10px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--line)}
+  .dot.on{background:var(--accent);width:18px;border-radius:4px}
+  .empty{border:2px dashed var(--line);border-radius:14px;padding:28px 12px;text-align:center;color:var(--muted);font-size:14px}
+  .btn{border:0;border-radius:12px;padding:10px 14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn.primary{background:var(--accent);color:#1b1b1b}
+  .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+  .btn.danger{background:transparent;color:var(--danger);border:1px solid var(--danger)}
+  .btn.small{padding:6px 10px;font-size:12px}
+  .btn.block{width:100%;margin-top:6px}
+  .btn:disabled{opacity:.4;cursor:default}
+  nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#0b1026;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:6px 4px calc(10px + env(safe-area-inset-bottom));z-index:10}
+  nav button{flex:1;min-width:0;min-height:52px;background:none;border:0;color:var(--muted);font-family:inherit;font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;border-radius:12px}
+  nav button .ic{font-size:21px;line-height:1}
+  nav button.on{color:var(--accent);background:rgba(255,176,32,.08)}
+  /* overlays */
+  .overlay{position:fixed;inset:0;background:rgba(5,8,20,.85);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+  .overlay.show{display:flex}
+  .sheet{background:var(--panel);border-radius:var(--radius);width:100%;max-width:440px;padding:18px;border:1px solid var(--line);max-height:92vh;overflow:auto}
+  .sheet h3{margin:0 0 12px;font-family:"Jua",sans-serif;font-weight:400;font-size:20px}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 6px}
+  input[type=text],input[type=search]{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:16px;font-family:inherit}
+  .seg{display:flex;gap:8px}
+  .seg button{flex:1}
+  .seg button.on{background:var(--accent);color:#1b1b1b;border-color:var(--accent)}
+  .preview{margin-top:10px;background:#fff;border-radius:12px;min-height:120px;display:grid;place-items:center;overflow:hidden}
+  .preview img{max-width:100%;max-height:260px}
+  .row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+  .scan{background:#fff;flex-direction:column;padding:0}
+  .scan img{max-width:100%;max-height:78vh;object-fit:contain}
+  .scan .scanbar{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:#0f1530;color:#fff}
+  .scan .hint{position:absolute;bottom:0;left:0;right:0;text-align:center;padding:12px;background:#0f1530;color:var(--accent);font-size:13px}
+  .toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:#000c;color:#fff;padding:10px 16px;border-radius:999px;font-size:13px;display:none;z-index:30;white-space:nowrap}
+  .list-item{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;background:var(--panel2);margin-bottom:8px}
+  .list-item img{width:56px;height:42px;object-fit:contain;background:#fff;border-radius:8px}
+  .list-item .grow{flex:1;min-width:0}
+  .list-item .t{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .list-item .s{font-size:12px;color:var(--muted)}
+  .help{font-size:13px;color:var(--muted);line-height:1.7}
+  .help b{color:var(--text)}
+  .help p{margin:0 0 10px}
+  .help p:last-child{margin-bottom:0}
+
+  /* chips */
+  .chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px 0 4px;-webkit-overflow-scrolling:touch}
+  .chips::-webkit-scrollbar{display:none}
+  .chips.wrap{flex-wrap:wrap;overflow:visible}
+  .chip{flex:0 0 auto;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:999px;padding:9px 14px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;min-height:40px}
+  .chip small{font-weight:500;color:var(--muted);margin-left:3px;font-size:11px}
+  .chip.on{background:var(--accent);color:#1b1b1b;border-color:var(--accent)}
+  .chip.on small{color:#4a3500}
+
+  /* progress */
+  .prog{height:12px;border-radius:999px;background:var(--bg);border:1px solid var(--line);overflow:hidden;margin-top:8px}
+  .prog > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#ff7a59);border-radius:999px;transition:width .25s}
+  .progtxt{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--muted)}
+  .progtxt b{font-family:"Jua",sans-serif;font-weight:400;font-size:22px;color:var(--text)}
+  .hero .prog{background:rgba(0,0,0,.18);border-color:rgba(255,255,255,.3)}
+  .hero .prog > i{background:#fff}
+  .hero .progtxt{color:#fff}
+  .hero .progtxt b{color:#fff}
+
+  /* dex */
+  .dexmeta{font-size:12px;color:var(--muted);margin-top:8px}
+  .toolbar{display:flex;flex-direction:column;gap:10px}
+  .seg3{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:3px}
+  .seg3 button{flex:1;border:0;background:none;color:var(--muted);font-family:inherit;font-weight:700;font-size:14px;padding:9px 4px;border-radius:9px;cursor:pointer;min-height:40px}
+  .seg3 button.on{background:var(--panel2);color:var(--accent)}
+  .gradehead{display:flex;align-items:center;gap:8px;margin:14px 0 8px;font-size:14px;font-weight:700}
+  .gradehead:first-child{margin-top:0}
+  .gradehead .gc{font-size:12px;color:var(--muted);font-weight:500;margin-left:auto}
+  .gb{display:inline-flex;align-items:center;justify-content:center;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700;color:#1b1b1b;white-space:nowrap}
+  .g6{background:linear-gradient(135deg,#ffe27a,#ffb020)}
+  .g5{background:linear-gradient(135deg,#d7b8ff,#a974ff)}
+  .g4{background:#7fb5ff}
+  .g3{background:#6fe3c6}
+  .g2{background:#c3c9e4}
+  .gR{background:linear-gradient(135deg,#ffb88a,#ff7a59)}
+  .tag{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 12px;border-radius:12px;background:var(--panel2);margin-bottom:6px;border:1px solid transparent}
+  .tag.own{border-color:var(--accent);background:linear-gradient(90deg,rgba(255,176,32,.16),var(--panel2) 70%)}
+  .tag .code{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:58px}
+  .tag .tn{flex:1;min-width:0;font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tag.own .tn::after{content:" ✓";color:var(--accent)}
+  .ctr{display:flex;align-items:center;gap:4px}
+  .ctr button{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:20px;font-weight:700;cursor:pointer;font-family:inherit;line-height:1}
+  .ctr button.plus{background:var(--accent);color:#1b1b1b;border-color:var(--accent)}
+  .ctr button:disabled{opacity:.3;cursor:default}
+  .ctr .n{min-width:26px;text-align:center;font-family:"Jua",sans-serif;font-size:19px}
+  .upcoming{text-align:center;padding:26px 14px;border-radius:14px;background:linear-gradient(135deg,rgba(122,92,255,.18),rgba(79,209,197,.12));border:1px dashed var(--accent2)}
+  .upcoming .big{font-size:38px}
+  .upcoming h4{margin:8px 0 6px;font-family:"Jua",sans-serif;font-weight:400;font-size:20px}
+  .upcoming p{margin:0;font-size:14px;color:var(--muted);line-height:1.6}
+  .srcnote{font-size:11px;color:var(--muted);text-align:center;margin:4px 16px 16px;line-height:1.6}
+  .srcnote a{color:var(--accent2)}
+
+  /* stores */
+  .store{display:flex;align-items:flex-start;gap:8px;padding:10px;border-radius:12px;background:var(--panel2);margin-bottom:8px;border:1px solid transparent}
+  .store.fav{border-color:var(--accent)}
+  .store .grow{flex:1;min-width:0}
+  .store .sn{font-weight:700;font-size:15px;word-break:keep-all;overflow-wrap:anywhere}
+  .store .sa{font-size:12px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+  .store .acts{display:flex;flex-direction:column;gap:6px;align-items:stretch;flex:0 0 auto}
+  .favbtn{width:44px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--muted);font-size:20px;cursor:pointer;line-height:1}
+  .favbtn.on{color:var(--accent);border-color:var(--accent)}
+  .maplink{display:inline-flex;align-items:center;justify-content:center;height:34px;padding:0 10px;border-radius:10px;background:var(--bg);border:1px solid var(--line);color:var(--accent2);font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap}
+  .sublabel{font-size:12px;color:var(--muted);margin:4px 0 8px;font-weight:700}
+
+  /* info */
+  .info h3{font-family:"Jua",sans-serif;font-weight:400;font-size:19px}
+  .steps{list-style:none;padding:0;margin:0;counter-reset:s}
+  .steps li{counter-increment:s;display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;font-size:14px;line-height:1.6;color:var(--text)}
+  .steps li::before{content:counter(s);flex:0 0 26px;height:26px;border-radius:50%;background:var(--accent);color:#1b1b1b;font-weight:700;display:grid;place-items:center;font-size:13px;margin-top:1px}
+  .tip{font-size:13px;color:var(--text);background:var(--panel2);border-radius:12px;padding:10px 12px;line-height:1.6}
+  .timeline{display:flex;flex-direction:column;gap:8px}
+  .tl{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--panel2);font-size:14px}
+  .tl .d{margin-left:auto;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+  .tl.soon{border:1px dashed var(--accent2)}
+  .linkbtn{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-radius:12px;background:var(--panel2);color:var(--text);text-decoration:none;font-weight:700;font-size:14px;margin-top:8px;border:1px solid var(--line)}
+  .linkbtn span{color:var(--accent2)}
+  .linkbtn.primary{background:var(--accent);color:#1b1b1b;border-color:var(--accent)}
+  .linkbtn.primary span{color:#1b1b1b}
+
+  /* QR */
+  .list-item{flex-wrap:wrap}
+  .list-item .grow{flex:1 1 150px}
+  .list-item .acts{display:flex;gap:6px;margin-left:auto}
+  .vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
+  label.filebtn{display:flex;align-items:center;justify-content:center;flex:1;margin:0;text-align:center;min-height:50px;position:relative;overflow:hidden}
+  .qrstate{font-size:13px;color:var(--muted);margin-top:10px;line-height:1.6;display:flex;gap:10px;align-items:center}
+  .qrstate.ok{color:var(--accent2);font-weight:700}
+  .qrstate.bad{color:var(--danger)}
+  .qrstate img{width:76px;height:76px;image-rendering:pixelated;background:#fff;border-radius:6px;flex:0 0 auto}
+  .card .mark{position:absolute;top:8px;right:8px;background:var(--accent);color:#1b1b1b;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+  .card .mark.off{right:auto;left:8px;background:var(--accent2)}
+  img.qr{image-rendering:pixelated}
+  [hidden]{display:none !important}
+  .scan .scanbody{position:absolute;top:56px;bottom:46px;left:0;right:0;overflow:auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:12px;padding:12px 16px;color:#1b1b1b}
+  .scan .scanbody > :first-child{margin-top:auto}
+  .scan .scanbody > :last-child{margin-bottom:auto}
+  .scan .scanbody img{max-width:100%;max-height:60vh;object-fit:contain}
+  .scan .scanbody img.qr{width:min(86vw,58vh,520px);height:auto;max-height:none}
+  .scanswitch{display:flex;gap:6px}
+  .scanswitch button{border:1px solid #c9cde0;background:#fff;color:#1b1b1b;border-radius:999px;padding:9px 18px;font-weight:700;font-family:inherit;font-size:14px;cursor:pointer;min-height:40px}
+  .scanswitch button.on{background:#0f1530;color:#fff;border-color:#0f1530}
+  .scaninfo{font-size:13px;color:#4a4f66;text-align:center;line-height:1.6;max-width:420px;overflow-wrap:anywhere}
+  .scaninfo b{color:#1b1b1b}
+  .scan #scanEdit{color:#0f1530;border-color:#c9cde0}
+
+  /* type chart */
+  .typehint{font-size:13px;color:var(--muted);margin:10px 0 8px;line-height:1.6}
+  .chip.t{display:inline-flex;align-items:center}
+  .chip.t::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--tc);margin-right:6px;flex:0 0 auto}
+  .chip.t.on{background:var(--tc);color:#1b1b1b;border-color:var(--tc)}
+  .chip.t.on::before{background:#1b1b1b33}
+  .tres{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+  .tres .ttl{font-family:"Jua",sans-serif;font-size:18px;margin-bottom:4px}
+  .tres .empty{padding:18px 12px}
+  .tgroup{margin-top:10px}
+  .tglabel{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;margin-bottom:7px}
+  .mult{font-family:"Jua",sans-serif;font-size:14px;font-weight:400;padding:2px 9px;border-radius:8px;background:var(--bg);border:1px solid var(--line);min-width:38px;text-align:center}
+  .mult.m4,.mult.m2{color:#1b1b1b;background:var(--accent);border-color:var(--accent)}
+  .mult.m0{color:var(--danger);border-color:var(--danger)}
+  .tpill{display:inline-block;padding:6px 12px;border-radius:999px;font-size:14px;font-weight:700;color:#1b1b1b;background:var(--tc);margin:0 6px 6px 0}
+  .tgroup.weak .tpill{opacity:.75}
+</style>
+<style>
+  .hdr-r{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+  .loginbtn{border:0;border-radius:999px;padding:7px 12px;font:700 13px "Noto Sans KR",sans-serif;background:var(--accent);color:#1b1b1b;cursor:pointer}
+  .fam-p{margin:0 0 10px;font-size:14px;line-height:1.5;color:var(--text);word-break:break-all}
+  .fam-row{display:flex;gap:8px;flex-wrap:wrap}
+  .fam-btn{flex:1 1 140px;min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:700 15px "Noto Sans KR",sans-serif;cursor:pointer}
+  .fam-btn.main{background:var(--accent);color:#1b1b1b;border-color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo"><span class="star">★</span>내 태그 지갑</div>
+    <div class="hdr-r"><div class="status" id="status">불러오는 중…</div><button id="loginBtn" class="loginbtn" type="button" hidden>구글 로그인</button></div>
+  </header>
+
+  <!-- ===== 지갑 ===== -->
+  <div id="view-home" class="view">
+    <div class="hero">
+      <h2>게임 시작 전에 꺼내 보세요</h2>
+      <p>카드를 누르면 QR이 화면 가득 크게 나와서 기계에 바로 찍을 수 있어요.</p>
+    </div>
+    <div class="section">
+      <div class="section-head">
+        <h3>트레이너 ID <span class="badge" id="tCount">0</span></h3>
+        <button class="btn small ghost" data-add="trainer">+ 추가</button>
+      </div>
+      <div class="carousel" id="trainerCarousel"></div>
+      <div class="dots" id="trainerDots"></div>
+    </div>
+    <div class="section">
+      <div class="section-head">
+        <h3>서포트 카드 <span class="badge" id="sCount">0</span></h3>
+        <button class="btn small ghost" data-add="support">+ 추가</button>
+      </div>
+      <div class="carousel" id="supportCarousel"></div>
+      <div class="dots" id="supportDots"></div>
+    </div>
+  </div>
+
+  <!-- ===== 도감 ===== -->
+  <div id="view-dex" class="view" hidden>
+    <div class="hero">
+      <h2>내 태그 도감</h2>
+      <div class="progtxt"><span>모은 종류 (전체 탄)</span><span><b id="dexAllNum">0</b> / <span id="dexAllTot">0</span></span></div>
+      <div class="prog"><i id="dexAllBar" style="width:0"></i></div>
+    </div>
+    <div class="section">
+      <div class="chips" id="seriesChips"></div>
+      <div class="dexmeta" id="seriesMeta"></div>
+      <div id="seriesProg">
+        <div class="progtxt" style="margin-top:10px"><span>모은 종류 <span id="dexSerNum">0</span> / 전체 <span id="dexSerTot">0</span></span><span id="dexSerPct">0%</span></div>
+        <div class="prog"><i id="dexSerBar" style="width:0"></i></div>
+      </div>
+    </div>
+    <div class="section" id="dexToolbar">
+      <div class="toolbar">
+        <div class="seg3" id="dexFilter">
+          <button class="on" data-f="all">전체</button>
+          <button data-f="own">가진 것</button>
+          <button data-f="miss">없는 것</button>
+        </div>
+        <input type="search" id="dexSearch" placeholder="🔍 이름으로 찾기 (예: 피카츄)" autocomplete="off">
+      </div>
+    </div>
+    <div class="section" id="dexList"></div>
+    <div class="srcnote">출처: 포켓몬태그스타 공식 홈페이지 (2026-11-19 기준)<br>숫자는 이 지갑에만 저장되는 내 기록이에요.</div>
+  </div>
+
+  <!-- ===== 매장 ===== -->
+  <div id="view-store" class="view" hidden>
+    <div class="hero teal">
+      <h2>어디서 할 수 있을까?</h2>
+      <p>지역을 고르거나 동네·매장 이름으로 찾아보세요. ☆를 누르면 자주 가는 곳으로 위에 보여요.</p>
+    </div>
+    <div class="section">
+      <input type="search" id="storeSearch" placeholder="🔍 예: 수원, 이마트, 홈플러스" autocomplete="off">
+      <div class="chips" id="regionChips" style="margin-top:10px"></div>
+    </div>
+    <div class="section">
+      <div class="section-head"><h3>매장 목록</h3><span class="count" id="storeCount"></span></div>
+      <div id="storeList"></div>
+      <button class="btn ghost block" id="storeMore" hidden>더 보기</button>
+    </div>
+    <div class="srcnote">매장마다 설치·철수가 실제와 다를 수 있어요 · 공식 홈페이지 기준 2026-11-19<br>
+      <a href="https://www.pokemontagstar.co.kr/kr/sub/place.php" target="_blank" rel="noopener">공식 홈페이지 설치 장소 보기 ↗</a></div>
+  </div>
+
+  <!-- ===== 정보 ===== -->
+  <div id="view-info" class="view" hidden>
+    <div class="hero violet">
+      <h2>포켓몬태그스타 알아보기</h2>
+      <p>처음 해 보는 친구도, 같이 간 어른도 쉽게 볼 수 있게 정리했어요.</p>
+    </div>
+    <div class="section info">
+      <div class="section-head"><h3>🎮 게임 방법</h3></div>
+      <ol class="steps">
+        <li><span><b>1,500원</b>을 넣고 시작해요.</span></li>
+        <li><span>태그 1장을 받고 모드를 골라요. 「배틀로 겟」 또는 「지금 바로 배틀」!</span></li>
+        <li><span>태그를 세팅해서 내 포켓몬을 꺼내요. <b>버튼을 연타</b>하면 기술이 파워업해요.</span></li>
+        <li><span>배틀이 끝나면 <b>볼을 던져</b> 잡기에 도전해요.</span></li>
+        <li><span>잡았다면 <b>1,500원</b>을 넣어 태그로 만들 수 있어요.</span></li>
+      </ol>
+      <div class="tip">👫 <b>2명이 함께</b> 하면 화면이 합체하는 「스페셜 태그 배틀」이 생길 수 있어요. 잡으면 <b>두 사람 모두</b> 태그를 받아요!</div>
+    </div>
+    <div class="section info" id="typeSec">
+      <div class="section-head"><h3>⚔️ 타입 상성표</h3></div>
+      <div class="seg3" id="typeMode">
+        <button class="on" data-m="def">상대 타입으로 찾기</button>
+        <button data-m="atk">내 기술로 찾기</button>
+      </div>
+      <div class="typehint" id="typeHint"></div>
+      <div class="chips wrap" id="typeChips"></div>
+      <div class="tres" id="typeResult"></div>
+      <div class="dexmeta" style="margin-top:12px">본편 게임 기준이에요. 태그스타 배틀에서는 조금 다를 수 있어요.</div>
+    </div>
+    <div class="section info">
+      <div class="section-head"><h3>🪪 트레이너 ID</h3></div>
+      <div class="help">
+        <p>트레이너 ID를 찍고 놀면 <b>최고 스코어</b>가 저장돼요.</p>
+        <p>잡은 <b>슈퍼스타태그·스타태그</b> 포켓몬도 확인할 수 있어요. 발견만 한 포켓몬은 실루엣으로 보여요.</p>
+      </div>
+      <a class="linkbtn primary" href="https://www.pokemontagstar.co.kr/kr/id_create/index.php" target="_blank" rel="noopener">공식 홈페이지에서 트레이너 ID 만들기 <span>↗</span></a>
+    </div>
+    <div class="section info">
+      <div class="section-head"><h3>🎟️ 서포트 포켓몬 티켓</h3></div>
+      <div class="help">
+        <p>배틀 시작 전에 티켓의 <b>QR을 스캔</b>하면 서포트 포켓몬이 나타나요. 공격력을 높여 주거나 직접 공격해서 도와줘요. 한 번 배틀에 <b>1장만</b> 쓸 수 있어요.</p>
+        <p>공식 홈페이지에 나온 <b>창파나이트·따라큐</b> 티켓은 지갑에 미리 넣어 두었어요.</p>
+      </div>
+      <a class="linkbtn" href="https://www.pokemontagstar.co.kr/kr/sub/htp13.php" target="_blank" rel="noopener">공식 서포트 포켓몬 티켓 리스트 <span>↗</span></a>
+    </div>
+    <div class="section info">
+      <div class="section-head"><h3>📅 탄 일정</h3></div>
+      <div class="timeline">
+        <div class="tl"><span class="gb g4">1탄</span>스타더스트 1탄<span class="d">2026-04-13</span></div>
+        <div class="tl"><span class="gb g5">2탄</span>스타더스트 2탄<span class="d">2026-08-03</span></div>
+        <div class="tl soon"><span class="gb g6">3탄</span>스타더스트 3탄<span class="d">2026-11-23 순차 가동</span></div>
+      </div>
+    </div>
+    <div class="section info help">
+      <div class="section-head"><h3>👛 지갑 사용법</h3></div>
+      <p><b>1. QR 등록하기</b><br>「지갑」 탭의 「+ 추가」 → 「📷 카메라로 찍기」로 트레이너 ID나 서포트 티켓의 QR을 찍거나, 「🖼️ 사진·캡처 고르기」로 캡처 화면을 고르세요. QR을 읽으면 「QR ✓」 표시가 붙어요.</p>
+      <p><b>2. 게임할 때</b><br>카드를 누르면 저장한 QR이 흰 화면에 크게 나와요. 휴대폰 <b>화면 밝기를 최대로</b> 올리고 기계 스캐너에 대세요. 「사진」을 누르면 찍었던 사진도 볼 수 있어요.</p>
+      <p><b>3. 고치기·순서 바꾸기·지우기</b><br>카드를 크게 본 화면의 「✏️ 고치기」나, 아래 「관리」 탭에서 할 수 있어요.</p>
+      <p><b>4. 도감·매장</b><br>「도감」에서 가진 태그 수를 +/−로 기록하고, 「매장」에서 가까운 설치 장소를 찾아요.</p>
+      <p><b>5. 저장</b><br>아빠·엄마 구글 계정으로 로그인하면 두 휴대폰이 같은 「가족 지갑」을 같이 써요. 로그인하지 않으면 이 휴대폰에만 저장돼요. (저장 상태는 오른쪽 위에 표시돼요. 로그인·로그아웃은 「관리」 탭 아래쪽.)</p>
+    </div>
+    <div class="section info">
+      <div class="section-head"><h3>🔗 더 알아보기</h3></div>
+      <a class="linkbtn" href="https://www.pokemontagstar.co.kr/kr/index.php" target="_blank" rel="noopener">공식 홈페이지 <span>↗</span></a>
+      <a class="linkbtn" href="https://bbs.hobbyspace.org/pocketmon/home" target="_blank" rel="noopener">팬 사이트 (하비스페이스) <span>↗</span></a>
+    </div>
+  </div>
+
+  <!-- ===== 관리 ===== -->
+  <div id="view-manage" class="view" hidden>
+    <div class="section">
+      <div class="section-head"><h3>카드 관리</h3><button class="btn small primary" data-add="support">+ 새 카드</button></div>
+      <div id="manageList"></div>
+    </div>
+  </div>
+</div>
+
+<nav>
+  <button class="on" data-view="home"><span class="ic">🪪</span>지갑</button>
+  <button data-view="dex"><span class="ic">📒</span>도감</button>
+  <button data-view="store"><span class="ic">📍</span>매장</button>
+  <button data-view="info"><span class="ic">💡</span>정보</button>
+  <button data-view="manage"><span class="ic">🗂️</span>관리</button>
+</nav>
+
+<!-- add/edit sheet -->
+<div class="overlay" id="addOverlay">
+  <div class="sheet">
+    <h3 id="addTitle">카드 추가</h3>
+    <label>종류</label>
+    <div class="seg" id="typeSeg">
+      <button class="btn ghost" data-type="trainer">트레이너 ID</button>
+      <button class="btn ghost" data-type="support">서포트 카드</button>
+    </div>
+    <label for="nameIn">이름</label>
+    <input type="text" id="nameIn" maxlength="30" placeholder="예: 서아 트레이너 ID / 창파나이트">
+    <label for="noteIn">메모 (선택)</label>
+    <input type="text" id="noteIn" maxlength="40" placeholder="예: 스타 등급, 타입 등">
+    <label>QR 등록</label>
+    <div class="seg">
+      <label class="btn primary filebtn">📷 카메라로 찍기<input type="file" id="camIn" class="vh" accept="image/*" capture="environment"></label>
+      <label class="btn ghost filebtn">🖼️ 사진·캡처 고르기<input type="file" id="fileIn" class="vh" accept="image/*"></label>
+    </div>
+    <div class="qrstate" id="qrState"></div>
+    <div class="preview" id="preview"><span style="color:#888;font-size:13px">사진을 고르면 여기에 보여요</span></div>
+    <div class="row">
+      <button class="btn ghost" id="cancelAdd">취소</button>
+      <button class="btn primary" id="saveAdd">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- scan view -->
+<div class="overlay scan" id="scanOverlay">
+  <div class="scanbar"><span id="scanName"></span><button class="btn small ghost" id="closeScan" style="color:#fff">닫기 ✕</button></div>
+  <div class="scanbody" id="scanBody">
+    <img id="scanImg" alt="">
+    <div class="scanswitch" id="scanSwitch">
+      <button data-s="qr">QR 코드</button>
+      <button data-s="photo">사진</button>
+    </div>
+    <div class="scaninfo" id="scanInfo"></div>
+    <button class="btn small ghost" id="scanEdit">✏️ 이름·메모·QR 고치기</button>
+  </div>
+  <div class="hint">☀️ 화면 밝기를 최대로 올리고 스캐너에 대세요</div>
+</div>
+
+<!-- confirm -->
+<div class="overlay" id="confirmOverlay">
+  <div class="sheet">
+    <h3>지울까요?</h3>
+    <p class="help" id="confirmText"></p>
+    <div class="row">
+      <button class="btn ghost" id="confirmNo">취소</button>
+      <button class="btn danger" id="confirmYes">지우기</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script async src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+(function(){
+  const TAGS = {
+  "series": [
+    {
+      "id": "S1", "name": "스타태그 스타더스트 1탄", "release": "2026-04-13", "prefix": "1-1-",
+      "groups": [
+        {"grade": "슈퍼스타태그 (★6)", "star": 6, "tags": ["001 뮤츠","002 뮤","003 자시안","004 자마젠타","005 마기라스","006 메타그로스","007 미라이돈","008 이상해꽃","009 리자몽","010 거북왕"]},
+        {"grade": "스타태그 (★5)", "star": 5, "tags": ["011 샤미드","012 부스터","013 블래키","014 글레이시아","015 피죤투","016 팬텀","017 윈디","018 거대코뿌리","019 피카츄","020 플라이곤","021 고릴타","022 에이스번","023 인텔리레온","024 가로막구리","025 케르디오"]},
+        {"grade": "태그 (★4)", "star": 4, "tags": ["034 고릴타","037 에이스번","040 인텔리레온","043 라이츄","045 쥬피썬더","046 에브이","047 리피아","048 님피아","050 포푸니라","054 야도란","056 만마드","059 가로막구리","062 투구뿌논","064 두트리오","066 백솜모카","067 폭거북스","070 모스노우"]},
+        {"grade": "태그 (★3)", "star": 3, "tags": ["027 나로테","029 악뜨거","031 아꾸왁","033 채키몽","036 래비풋","039 누겔레온","042 피카츄","044 이브이","049 포푸니","052 골루그","055 머드나기","058 가라르 직구리","061 전지충이","068 윽우지"]},
+        {"grade": "태그 (★2)", "star": 2, "tags": ["026 나오하","028 뜨아거","030 꾸왁스","032 흥나숭","035 염버니","038 울머기","041 데덴네","051 골비람","053 야돈","057 가라르 지그제구리","060 턱지충이","063 두두","065 꼬모카","069 누니머기"]}
+      ]
+    },
+    {
+      "id": "S2", "name": "스타태그 스타더스트 2탄", "release": "2026-08-03", "prefix": "1-2-",
+      "groups": [
+        {"grade": "슈퍼스타태그 (★6)", "star": 6, "tags": ["001 가이오가","002 그란돈","003 코라이돈","004 피카츄","005 잠만보","006 짜랑고우거","007 가디안","008 레시라무","009 제크로무","010 큐레무"]},
+        {"grade": "스타태그 (★5)", "star": 5, "tags": ["011 쥬피썬더","012 에브이","013 리피아","014 님피아","015 루카리오","016 토대부기","017 초염몽","018 엠페르트","019 알로라 나인테일","020 마기라스","021 메타그로스","022 애프룡","023 단지래플","024 마휘핑","025 갈가부기"]},
+        {"grade": "태그 (★4)", "star": 4, "tags": ["026 마스카나","027 라우드본","028 웨이니발","034 토대부기","037 초염몽","040 엠페르트","041 샤미드","042 부스터","043 블래키","044 글레이시아","046 펄스멍","049 피죤투","051 알로라 고지","056 플라이곤","062 후딘","064 둥실라이드","069 가디안"]},
+        {"grade": "태그 (★3)", "star": 3, "tags": ["033 수풀부기","036 파이숭이","039 팽태자","048 피죤","053 동탁군","055 비브라바","058 패리퍼","059 루주라","061 윤겔라","063 흔들풍손","065 시마사리","066 토게데마루","068 킬리아","070 롱스톤"]},
+        {"grade": "태그 (★2)", "star": 2, "tags": ["029 카르본","030 드니차","031 빠모","032 모부기","035 불꽃숭이","038 팽도리","045 멍파치","047 구구","050 알로라 모래두지","052 동미러","054 톱치","057 갈모매","060 캐이시","067 랄토스"]}
+      ]
+    },
+    {
+      "id": "S3", "name": "스타태그 스타더스트 3탄", "release": "2026-11-23", "prefix": "1-3-", "upcoming": true, "groups": []
+    }
+  ],
+  "regular": {"name": "레귤러태그", "note": "각 탄의 메인타이틀 기간 동안 계속 등장", "tags": ["R-1-1 피카츄","R-1-2 루카리오","R-1-3 잠만보"]},
+  "source": "포켓몬태그스타 공식 홈페이지 최신 탄 정보 (2026-11-19 확인)"
+};
+  const STORES = [["CU 동탄라크몽점","경기 화성시 동탄구 동탄대로5길 21 라크몽w 126, 127호"],["캑티가챠샵 산본점","경기 군포시 산본로323번길 16-12"],["세븐일레븐 고양휴게소2호점(문산방향)","경기 고양시 덕양구 수원문산고속도로 52"],["대전 푸시존","대전 중구 중앙로164번길 39 1층"],["송도 트리플스트리트 뽑기맨 (제이투팩토리)","인천 연수구 송도과학로16번길 33-4 송도 트리플스트리트 D동 206호"],["가챠샵 김해점","경남 김해시 장유동 843-1 위드스타빌딩"],["가챠샵 구의점","서울시 광진구 아차산로 402"],["GS더프레시 용인포곡점","경기 용인시 처인구 포곡읍 둔전로47번길 21 1층"],["GS더프레시 봉담점","경기 화성시 효행구 봉담읍 동화길 81-16"],["가챠샵 대구현풍점","대구광역시 달성군 현풍읍 중리 489-3엠타워 115호"],["현대아울렛 가든파이브점 (몰관)","서울 송파구 충민로 66"],["캑티가챠샵 옥정점","경기 양주시 옥정동로7다길 12-13"],["캑티가챠샵 서현점","경기 성남시 분당구 서현로210번길 17 1층"],["세븐일레븐 파주출판도시휴게소점","경기 파주시 자유로 2210"],["캑티가챠샵 구월2광장점","인천 남동구 인하로507번길 63 1층"],["캑티가챠샵 방이점","서울 송파구 오금로11길 11-1"],["캑티가챠샵 대학로점","서울 종로구 대명길 40"],["가챠샵 포항점","경북 포항시 북구 중앙상가길 28-2 1층"],["토이플러스 마리오아울렛점","서울 금천구 벚꽃로 266 3관 7층"],["AK 종로서적 평택점","경기 평택시 평택로 51 평택역사 8층"],["가챠샵 창원대현몰점","경남 창원시 마산회원구 3.15대로 지하 758 합성지하상가"],["캑티가챠샵 검단점","인천 검단구 바리미로 17"],["CU 우만타운점","경기 수원시 팔달구 팔달문로130번길 55 1층 101호"],["CU 구운센터점","경기 수원시 권선구 구운로 36 1층"],["CU 수원안다미로점","경기 수원시 권선구 곡선로50번길 6-7"],["CU 주례냉정점","부산 사상구 가야대로366번길 14"],["CU 춘천온의타운점","강원특별자치도 춘천시 스포츠타운길 528 1층"],["CU 호구포역점","인천 남동구 호구포로 201 논현두손지젤타워 1층 107~109호"],["CU 천안로얄점","충남 천안시 동남구 만남로 18"],["CU 목감센터점","경기 시흥시 동서로 1047 1층"],["CU 안양예술공원사거리점","경기 안양시 만안구 경수대로 1176 1층"],["CU 관악하늘점","서울 관악구 인헌길 68 1층 B동"],["CU 안양호계한마음점","경기 안양시 동안구 전파로 123"],["CU 마포아이비점","서울 마포구 서강로 136 아이비타워 지하1층 B101호"],["CU 금호사거리점","서울 성동구 독서당로 335 서희빌딩"],["CU 광주화정시영점","광주 서구 화정로 107 1층"],["CU 시지한신휴플러스점","대구 수성구 달구벌대로669길 40"],["CU 만촌메트로점","대구 수성구 화랑로8길 11-13 성화빌딩 1층"],["CU 서청주파크자이점","충북 청주시 흥덕구 청향로19번길 33 1층"],["CU 대전본점","대전 동구 동서대로1683번길 76-13"],["CU 대전용운용방점","대전 동구 용운로 80 가동 상가동 1층 1호"],["오창휴게소 (하행)","충북 청주시 청원구 오창읍 중부고속도로 21"],["세븐일레븐 원주법원점","강원특별자치도 원주시 봉바위길 3 1층"],["이마트24 시흥정왕스피드점","경기 시흥시 마유로423번길 14"],["이마트 푸드마켓 고덕점","서울 강동구 고덕비즈밸리로 51 강동아이파크더리버 지하 1층"],["세븐일레븐 서동탄자이파크점","경기 화성시 병점구 서동탄로 53 105호,106호"],["이마트 월배점","대구 달서구 진천로 92"],["롯데마트 김천점","경북 김천시 시청로 80"],["이마트 김천점","경북 김천시 시청로 75"],["이마트 칠성점","대구 북구 침산로 93 이마트 칠성점"],["롯데마트 마산양덕점","경남 창원시 마산회원구 삼호로 80"],["GS25 신천청아람점","대구 동구 장등로 81"],["이마트 연제점","부산 연제구 연수로 89"],["가챠샵 기장정관점","부산 기장군 정관읍 매학리 712-3"],["롯데마트 진해점","경남 창원시 진해구 진해대로 762 2-3층"],["롯데마트 진주점","경남 진주시 동진로 440 지하1층"],["롯데마트 삼계점","경남 창원시 마산회원구 내서읍 경남대로 927"],["이마트 사천점","경남 사천시 삼천포대교로 591"],["이마트 통영점","경남 통영시 광도면 죽림4로 9"],["롯데마트 통영점","경남 통영시 무전대로 65 롯데마트 통영점"],["롯데마트 창원시티세븐점","경남 창원시 성산구 원이대로 320 지하1층"],["토이저러스 롯데마트 대구죽전점(하이마트)","대구 달서구 달구벌대로 1567 롯데 하이마트 죽전점 3층"],["이마트 창원점","경남 창원시 성산구 원이대로 608"],["스타필드마켓 경산점","경북 경산시 옥산로 227"],["이마트 영천점","경북 영천시 최무선로 83 1층"],["롯데마트 장유점","경남 김해시 번화1로56번길 15"],["세븐일레븐 진해남문호반점","경남 창원시 진해구 웅천동로43번길 47 101,102호"],["롯데마트 김해점","경남 김해시 김해대로 2330"],["이마트 동구미점","경북 구미시 이계북로 23 1층"],["이마트 구미점","경북 구미시 구미대로 256"],["세이브존 울산점","울산 남구 번영로250번길 9"],["이마트 금정점","부산 금정구 중앙대로1841번길 24"],["롯데마트 광복점","부산 중구 중앙대로 2 지하1~5층,1~3,6층"],["울산 듴마켓","울산 중구 학성로 59"],["세븐일레븐 대구삼덕제일점","대구 중구 동성로6길 78"],["롯데마트 동부산점","부산 기장군 기장읍 기장해안로 147 2층"],["롯데마트 사하점","부산 사하구 을숙도대로 610"],["이마트 포항점","경북 포항시 남구 냉천로 10"],["세븐일레븐 마산삼계그린점","경남 창원시 마산회원구 내서읍 삼계본동2길 1 1층"],["롯데마트 화명점","부산 북구 화명대로 47"],["이마트 마산점","경남 창원시 마산합포구 서성로 3"],["이마트에브리데이 포항연일점","경북 포항시 남구 연일읍 유강길 17 1층"],["GS더프레시 포항양덕점","경북 포항시 북구 양덕로 43 1층"],["롯데마트 마산점","경남 창원시 마산합포구 신마산시장길 33"],["GS25 정평역하늘채점","경북 경산시 대학로9길 58"],["이마트 반야월점","대구 동구 안심로 389-2"],["이마트 울산점","울산 남구 남중로 48"],["이마트 봉선점","광주 남구 봉선로 198"],["롯데마트 진장점","울산 북구 진장유통로 64"],["롯데마트 토이저러스 수완점","광주 광산구 장신로 98 롯데마트 수완점 3층"],["가챠샵 광주수완점","광주 광산구 수완동 1473"],["롯데마트 월드컵점","광주 서구 금화로 240 1-3층"],["이마트 광주점","광주 서구 죽봉대로 61"],["GS더프레시 홍천점","강원특별자치도 홍천군 홍천읍 홍천로 344"],["이마트 속초점","강원특별자치도 속초시 설악금강대교로 12"],["이마트 안동점","경북 안동시 옥동1길 2"],["이마트 부천점","경기 부천시 소사구 부천로 1"],["이마트 강릉점","강원특별자치도 강릉시 경강로 2398-10"],["이마트 동해점","강원특별자치도 동해시 천곡로 100"],["하나로마트 예천점","경북 예천군 호명읍 수변로 77"],["이마트 상주점","경북 상주시 경상대로 3141"],["롯데마트 당진점","충남 당진시 정안로 20"],["롯데마트 홍성점","충남 홍성군 홍성읍 조양로247번길 9"],["롯데마트 익산점","전북특별자치도 익산시 무왕로 1053"],["롯데마트 군산점","전북특별자치도 군산시 수송로 185"],["이마트 군산점","전북특별자치도 군산시 구암3.1로 137"],["이마트 익산점","전북특별자치도 익산시 평동로 705 1-5층"],["펀시티 신세계백화점 대전점","대구 동구 동부로 149"],["더벙커 게임존","대전 유성구 대학로 34 노블레스타워 지하1층 101~104, 106~9호"],["대전 원더랜드 2호점","대전 중구 중앙로164번길 7 1층"],["롯데마트 서대전점","대전 유성구 유성대로 26-37"],["대전 원더랜드 1호점","대전 중구 중앙로164번길 22-12"],["롯데마트 정읍점","전북특별자치도 정읍시 벚꽃로 85"],["이마트 전주점","전북특별자치도 전주시 완산구 당산로 111"],["롯데마트 첨단점","광주 광산구 첨단강변로99번길 22"],["가챠샵 전주점","전북특별자치도 전주시 완산구 팔달로 201-6 1층"],["롯데마트 남원점","전북특별자치도 남원시 춘향로 96"],["이마트 남원점","전북특별자치도 남원시 남문로 385-16"],["이마트 청주점","충북 청주시 서원구 청남로 1853"],["롯데마트 성정점","충남 천안시 서북구 성정두정로 1"],["롯데마트 상당점","충북 청주시 상당구 용암북로160번길 60"],["이마트 천안서북점","충남 천안시 서북구 삼성대로 20"],["코믹프라자 대구점","대구 중구 경상감영길 184 현대빌딩 2층"],["대구스타디움몰 4D라이더","대구 수성구 유니버시아드로 140"],["펀시티 대구신세계점","대구 동구 동부로 149 9층"],["이마트 세종점","세종특별자치시 금송로 687"],["가챠샵 공주점","충남 공주시 공주대학로 81 3층"],["가챠샵 양주점","경기 양주시 옥정동로7가길 36"],["이마트 양주점","경기 양주시 평화로 1713"],["롯데마트 동두천점","경기 동두천시 평화로2169번길 21"],["북스리브로 광양점","전남 광양시 광양읍 순광로 466 LF스퀘어 가든동"],["영풍문고 동탄점","경기 화성시 동탄구 동탄역로 156 지하 2층"],["롯데마트 남악점","전남 무안군 삼향읍 남악로162번길 80 2층"],["세이브존 화정점","경기 고양시 덕양구 화정로 52 지하2층"],["롯데마트 여천점","전남 여수시 무선로 187"],["이마트 화정점","경기 고양시 덕양구 백양로 79"],["이마트 목포점","전남 목포시 옥암로 138"],["이마트 여수점","전남 여수시 좌수영로 277"],["롯데마트 나주점","전남 나주시 내동길 15"],["펀스팟 스타필드시티 위례","경기 하남시 위례대로 200"],["토이저러스 롯데프리미엄아울렛이천점","경기 이천시 호법면 프리미엄아울렛로 177-76 키즈몰 3층"],["이마트 여주점","경기 여주시 세종로 151"],["한우리 신도림테크노마트점","서울 구로구 새말로 97 2층"],["GS25 미아위브점","서울 강북구 삼양로27길 43 상가 지하 4,5호"],["롯데마트 덕소점","경기 남양주시 와부읍 월문천로 33"],["GS25 서부스카이점","전북특별자치도 전주시 완산구 홍산4길 20-4 1층"],["토이저러스 롯데프리미엄아울렛파주점","경기 파주시 문발로 302 3층"],["이마트 용산점","서울 용산구 한강대로23길 55 지하1-지하2층"],["가챠샵 김포점","경기 김포시 김포한강2로 41 e편한세상 캐널시티 에비뉴 1층"],["이마트 순천점","전남 순천시 팔마로 191"],["가챠샵 순천점","전남 순천시 중앙로 240 지하1층"],["롯데마트 주엽점","경기 고양시 일산서구 중앙로 1496"],["이마트 포천점","경기 포천시 호국로 915"],["세븐일레븐 김포헤리움점","경기 김포시 김포한강11로 288-37 1층 126호~128호"],["롯데마트 충주점","충북 충주시 봉계1길 49"],["이마트 충주점","충북 충주시 중원대로 3420"],["이마트에브리데이 충주호암점","충북 충주시 호암수청4길 5 1층 101호"],["이마트 월계점","서울 노원구 마들로3길 15"],["토이저러스 롯데마트중계점","서울 노원구 노원로 330 지하1층"],["세븐일레븐 관저하늘점","대전 서구 관저남로25번길 8-4 1층"],["롯데마트 석사점","강원특별자치도 춘천시 세실로 108"],["롯데마트 춘천점","강원특별자치도 춘천시 방송길 84 롯데마트춘천점"],["캑티가챠샵 배곧점","경기 시흥시 서울대학로278번길 26 1층 120~121호"],["이마트 둔산점","대전 서구 둔산북로 41"],["가챠샵 차이나타운점","인천 중구 차이나타운로44번길 30"],["롯데마트 시흥배곧점","경기 시흥시 서울대학로278번길 67"],["이마트 춘천점","강원특별자치도 춘천시 경춘로 2353"],["모다아울렛 천안아산 펜타포트점","충남 천안시 서북구 공원로 196"],["롯데백화점 대전점","대전 서구 계룡로 598"],["GS더프레시 영종하늘도시점","인천 중구 하늘중앙로195번길 14 이은스퀘어 1층"],["롯데마트 영종도점","인천 중구 흰바위로 51 1층"],["롯데마트 시화점","경기 시흥시 마유로238번길 26"],["이마트 묵동점","서울 중랑구 동일로 932 묵동자이아파트2단지 지하1,2층"],["이마트 토이킹덤 안성점","경기 안성시 공도읍 서동대로 3930-39 2층"],["이마트 만촌점","대구 수성구 동원로 136"],["GS더프레시 진천점","충북 진천군 진천읍 남산길 78 1층"],["영풍문고 상봉점","서울 중랑구 상봉로 131 상봉듀오트리스 지하1층"],["대원미디어 용산점","서울 용산구 한강대로23길 55 아이파크몰 테마파크 6층 1-1호"],["세븐일레븐 대구지산드림점","대구 수성구 지범로31길 6 1층"],["롯데마트 제천점","충북 제천시 용두대로 111"],["이마트 제천점","충북 제천시 장평천로 11"],["이마트 김포한강점","경기 김포시 김포한강7로 71"],["게임너츠","서울 동작구 보라매로5가길 24 보라매나산스위트 지하1층"],["영풍문고 신림포도몰점","서울 관악구 신림로 330"],["이마트 검단점","인천 서구 서곶로 754 2층"],["이마트 평택점","경기 평택시 영신로 29"],["GS더프레시 관악점","서울 관악구 쑥고개로 111 1층"],["이마트 태백점","강원특별자치도 태백시 굴거랑길 4"],["평택휴게소 양방향","경기 평택시 청북읍 평택제천고속도로 6"],["세븐일레븐 시흥능곡점","경기 시흥시 승지로60번길 17 현대프라자 1층 103,104호"],["현대아울렛 가산점","서울 금천구 디지털로10길 9 지하5층-지하1층, 1-8층"],["모다아울렛 시흥점","경기 시흥시 장현능곡로 155 3-5층"],["롯데마트 김포한강점","경기 김포시 김포한강2로 41"],["롯데마트 의왕점","경기 의왕시 계원대학로 7"],["롯데마트 수원점","경기 수원시 권선구 세화로 134 1층"],["이마트 의왕점","경기 의왕시 경수대로 262 서해그랑블 지하1-지하2층"],["세븐일레븐 타임빌라스 수원점","경기 수원시 권선구 세화로 134"],["이마트24 안양씨엘포레자이점","경기 안양시 만안구 소곡로 78 상가동 B108,109호"],["이마트 광교점","경기 수원시 영통구 광교로 191"],["펀스팟 신세계백화점 센텀시티점","부산 해운대구 센텀남대로 35"],["가챠샵 인천논현점","인천 남동구 청능대로 593 신성프라자 102호"],["롯데마트 그랑그로서리 롯데몰 은평점","서울 은평구 통일로 1050 롯데몰 2층"],["롯데마트 사상점","부산 사상구 낙동대로 733"],["캑티가챠샵 하남미사점","경기 하남시 미사강변동로 95 1층 1077호"],["캑티가챠샵 안양점","경기 안양시 만안구 안양로292번길 18 1-2층"],["이마트 미아점","서울 성북구 도봉로 17"],["세븐일레븐 부산모라베스트점","부산 사상구 사상로525번길 28"],["이마트 안양점","경기 안양시 동안구 관악대로 104"],["영풍문고 의정부신세계점","경기 의정부시 평화로 525 1-2층"],["롯데마트 부평역점","인천 부평구 광장로 16 2-4층"],["이마트 평촌점","경기 안양시 동안구 시민대로 300"],["세븐일레븐 의정부신도점","경기 의정부시 회룡로 145 102호"],["GS더프레시 루원리더스뷰점","인천 서구 봉오대로 270 근린생활시설 지하2층 B239,B245호"],["롯데마트 경기양평점","경기 양평군 양평읍 남북로 76"],["스타필드마켓 이마트 죽전점","경기 용인시 수지구 포은대로 552"],["롯데마트 안성점","경기 안성시 공도읍 서동대로 4478"],["세븐일레븐 안성공도우림점","경기 안성시 공도읍 진사길 25 101,102호"],["이마트 하남점","경기 하남시 덕풍서로 70"],["세븐일레븐 용인서천점","경기 용인시 기흥구 서천로117번길 9 114호,115호"],["캑티가챠샵 천호점","서울 강동구 천호대로157길 11"],["이마트 안성점","경기 안성시 중앙로 246"],["롯데마트 송파점","서울 송파구 중대로 80 문정프라자 B2~2F"],["롯데마트 토이저러스 평촌점","경기 안양시 동안구 시민대로160번길 20 G.square 주차동"],["펀시티 건대점","서울 광진구 동일로22길 81"],["가챠샵 대전은행점","대전 중구 중앙로164번길 22-12"],["세븐일레븐 대전대흥중앙점","대전 중구 인창로 2"],["GS더프레시 위례중앙점","경기 성남시 수정구 위례광장로 300 위례중앙역중앙타워 지하1층 B25호"],["캑티가챠샵 잠실새내점","서울 송파구 백제고분로7길 24 1층"],["세븐일레븐 방이프리미엄점","서울 송파구 백제고분로50길 19-28 1층"],["세이브존 성남점","경기 성남시 수정구 산성대로 337"],["이마트 대전터미널점","대전 동구 동서대로 1689"],["펀시티 롯데월드아이스가든점","서울 송파구 올림픽로 240 어드벤처 지하3층"],["캑티가챠샵 부천신중동점","경기 부천시 원미구 소향로 248"],["이마트 계양점","인천 계양구 봉오대로 785"],["이마트 가든파이브점","서울 송파구 충민로 10"],["세이브존 노원점","서울 노원구 한글비석로 57"],["롯데마트 제주점","제주특별자치도 제주시 연북로 1"],["이마트 제주점","제주특별자치도 제주시 탑동로 38"],["롯데마트 청라점","인천 서구 청라커낼로 252"],["GS더프레시 송파위례점","서울 송파구 위례광장로 188 아이온스퀘어 지하1층 B101호"],["GS25 구의파크점","서울 광진구 광나루로37길 21 1층"],["롯데마트 계양점","인천 계양구 장제로 822"],["롯데마트 동래점","부산 동래구 중앙대로 1393"],["이마트 창동점","서울 도봉구 노해로65길 4"],["롯데마트 검단점","인천 서구 원당대로 581"],["메가박스 검단점","인천 서구 서곶로 788 홀리랜드 4층"],["이마트 서귀포점","제주특별자치도 서귀포시 일주동로 9209"],["가챠샵 왕십리점","서울특별시 성동구 왕십리로 292 1층"],["이마트 양산점","경남 양산시 양산역6길 12"],["토이마켓 은평점","서울 은평구 응암로 319"],["이마트 용인점","경기 용인시 처인구 명지로 53"],["롯데마트 그랑그로서리 구리점","경기 구리시 동구릉로136번길 57 구리유통종합상가 A동 101호"],["이마트 동백점","경기 용인시 기흥구 동백죽전대로 444"],["이마트 흥덕점","경기 용인시 기흥구 흥덕중앙로 60"],["이마트 진접점","경기 남양주시 진접읍 금강로유연들1길 154"],["이마트 의정부점","경기 의정부시 민락로 210"],["롯데마트 삼산점","인천 부평구 길주로 623"],["토이저러스 롯데몰수지점","경기 용인시 수지구 성복2로 38 롯데몰수지점 2층"],["GS더프레시 용인한숲시티점","경기 용인시 처인구 남사읍 한숲로 60"],["이마트 별내점","경기 남양주시 순화궁로 167"],["이마트 수지점","경기 용인시 수지구 수지로 203"],["세이브존 부천상동점","경기 부천시 원미구 길주로 105"],["그리고 사진관","경기 용인시 기흥구 신고매로 59"],["이마트 보라점","경기 용인시 기흥구 한보라1로 92"],["이마트 성남점","경기 성남시 수정구 수정로 201"],["캑티가챠샵 부천역점","경기 부천시 원미구 부천로9번길 27"],["롯데마트 청주점","충북 청주시 흥덕구 풍산로 15"],["롯데마트 아산터미널점","충남 아산시 번영로 225 지하1-지하2층"],["GS25 청주강서타운점","충북 청주시 흥덕구 서현중로 56-1 1층"],["토이플러스 동탄점","경기 오산시 문시로 109-12"],["롯데마트 서청주점","충북 청주시 흥덕구 2순환로 1004 1층"],["이마트 아산점","충남 아산시 온천대로 1678"],["GS25 타임테라스점","경기 화성시 동탄구 동탄중앙로 200 상가동 타임테라스 B블럭 3층 303호"],["이마트 천안터미널점","충남 천안시 동남구 만남로 43"],["이마트 동탄점","경기 화성시 동탄구 동탄중앙로 376"],["천안 빅토이장난감백화점","충남 천안시 서북구 번영로 531 1층"],["세븐일레븐 인천시청점","인천 남동구 정각로 14 가온누리 102,103호"],["이마트 광명소하점","경기 광명시 소하로 97"],["이마트 경기광주점","경기 광주시 광주대로 30 지하1층"],["교보문고 인천점","인천 남동구 예술로 138 이토타워 지하1층"],["GS더프레시 고덕그라시움","서울 강동구 고덕로 353 고덕그라시움아파트 상가 108동 128호"],["이마트 천안점","충남 천안시 서북구 충무로 187"],["한토이 본점","경기 광주시 능평로 132-6"],["이마트24 R인천만수르점","인천 남동구 백범로214번길 7 1층"],["캑티가챠샵 수원역점","경기 수원시 팔달구 향교로 21"],["펀잇 (FUNIT) 이천점","경기 이천시 영창로 188"],["캑티가챠샵 부평점","인천 부평구 시장로12번길 8 1층"],["캑티가챠샵 철산점","경기 광명시 오리로856번길 8-1 1층"],["이마트 화성봉담점","경기 화성시 효행구 봉담읍 효행로 278"],["이마트 수원점","경기 수원시 권선구 경수대로 270"],["이마트 서산점","충남 서산시 서해로 3685"],["GS더프레시 원주혁신점","강원특별자치도 원주시 혁신로 63 1층"],["롯데마트 서산점","충남 서산시 충의로 27"],["더케이토이박스","부산 부산진구 중앙대로 672"],["가챠샵 서면점","부산 부산진구 중앙대로702번길 23 2층"],["롯데마트 원주점","강원특별자치도 원주시 봉화로 1"],["이마트 보령점","충남 보령시 해안로 25"],["세븐일레븐 원주채움점","강원특별자치도 원주시 능라동길 30 1층 113호"],["이마트 분당점","경기 성남시 분당구 불정로 134"],["이마트 자양점","서울 광진구 아차산로 272 더샵스타시티 지하1층"],["캑티가챠샵 건대점","서울 광진구 아차산로 219 1층 102호"],["GS25 부산수영현대점","부산 수영구 수영로 775 1층"],["가챠샵 부산남구점","부산 남구 대연동 61-7"],["가챠샵 경성대점","부산 남구 용소로19번길 13-1"],["GS25 건국점","서울 광진구 광나루로24길 14 1층"],["이마트 원주점","강원특별자치도 원주시 북원로 1928"],["영풍문고 분당서현점","경기 성남시 분당구 분당로 55 퍼스트타워 지하 1층"],["건대 커먼그라운드","서울 광진구 아차산로 200"],["토이저러스 롯데프리미엄아울렛기흥점","경기 용인시 기흥구 신고매로 124 2층"],["롯데마트 천천점","경기 수원시 장안구 만석로19번길 25-10"],["세븐일레븐 부산구서BNK점","부산 금정구 구서로 23 1층"],["경주점(대릉원선물가게)","경북 경주시 포석로1092번길 70"],["CGV 디큐브 거제백화점","경남 거제시 장평로 12"],["가챠샵 울산언양점","울산시 울주군 삼남읍 도호1길 30-34 센트럴K 2층 208호"],["토이킹덤 스타필드 수원점","경기 수원시 장안구 수성로 175 5층"],["한우리 스토어(국제전자센터)","서울 서초구 효령로 304"],["이마트 서수원점","경기 수원시 권선구 수인로 291"],["세븐일레븐 거제수월서희점","경남 거제시 고현로 138-37 301동 1층 104,105호"],["GS더프레시 거제신현점","경남 거제시 서문로 51"],["토이플러스 판교점","경기 성남시 수정구 창업로 17 C2동 B107호"],["롯데마트 이천점","경기 이천시 구만리로 191 롯데캐슬아파트 1층"],["캑티가챠샵 고잔점","경기 안산시 단원구 광덕3로 167 107호"],["이마트 양재점","서울 서초구 매헌로 16"],["세븐일레븐 진주석류점","경남 진주시 진주대로816번길 6-1 1층"],["이마트 천호점","서울 강동구 천호대로 1017"],["토이킹덤 스타필드 하남점","경기 하남시 미사대로 750 3층"],["롯데마트 안산점","경기 안산시 상록구 항가울로 422"],["이마트 산본점","경기 군포시 산본로 347"],["가챠샵 안산점","경기 안산시 단원구 중앙대로 921 젤루존 2층 202호"],["캑티가챠샵 시흥은계점","경기 시흥시 은계번영길 11"],["이마트 명일점","서울 강동구 고덕로 276"],["이마트 연수점","인천 연수구 경원대로 184"],["세븐일레븐_만수대성점","인천 남동구 장승남로81번길 6 1층"],["가챠샵 이수점","서울 동작구 동작대로27가길 46-5 (사당동) 1층"],["롯데마트 월드타워점","서울 송파구 올림픽로 300 지하2층"],["가챠마트 송리단길점","서울 송파구 오금로 146 1층"],["NC백화점 해운대점","부산 해운대구 해운대로 813"],["NC백화점 부산대점","부산 금정구 부산대학로63번길 2"],["캑티가챠샵 인계점","경기 수원시 팔달구 인계로166번길 48-7 HP빌딩"],["롯데마트 송도점","인천 연수구 컨벤시아대로 177"],["하나로마트 양산점(맥스라이더)","경남 양산시 물금읍 증산역로 177"],["하나로마트 부산점","부산 북구 금곡대로 469"],["세븐일레븐 뉴스타점","서울 송파구 백제고분로33길 31 1층"],["롯데마트 시흥점","경기 시흥시 비둘기공원로 28"],["이마트 일산점","경기 고양시 일산동구 중앙로 1124"],["세븐일레븐 롯데월드키자니아점","서울 송파구 올림픽로 240"],["GS25 뉴식사자이점","경기 고양시 일산동구 위시티4로 80 위시티일산자이1단지 상가 1동 109~114호"],["이마트 신도림점","서울 구로구 새말로 97 신도림테크노마트 지하2층"],["이마트에브리데이 서창2점","인천 남동구 서창남순환로215번길 20 1층"],["세븐일레븐 수택드림점","경기 구리시 벌말로185번길 28 1층"],["NC백화점 신구로점","서울 구로구 구로중앙로 152"],["이마트에브리데이 이문점","서울 동대문구 이문로 136 이문동 웰츠타워 지하1층 마트호"],["파주 아이토빅","경기 파주시 교하로 961-16"],["세븐일레븐 성북본점","서울 성북구 한천로99길 45 1층 101호"],["롯데마트 청량리점","서울 동대문구 왕산로 214 4층"],["GS25 반포1점","서울 서초구 고무래로8길 9 정환빌딩"],["세븐일레븐 방배드림점","서울 서초구 방배로37길 11 1층"],["이마트 파주점","경기 파주시 당하길 10"],["이마트에브리데이 이수점","서울 동작구 사당로 300"],["세븐일레븐 장안홈타운점","서울 동대문구 답십리로72길 34"],["세븐일레븐 연신내불광점","서울 은평구 통일로82길 47 1층"],["이마트 청계천점","서울 중구 청계천로 400"],["이마트 마포공덕점","서울 마포구 백범로 212"],["롯데마트 김포공항점","서울 강서구 하늘길 38 G층"],["세븐일레븐 관악힐스테이트점","서울 관악구 조원로 15-2 1층"],["이마트 하월곡점","서울 성북구 종암로 167 동일하이빌뉴시티"],["롯데마트 마석점","경기 남양주시 화도읍 경춘로 1992"],["이마트 은평점","서울 은평구 은평로 111"],["이마트 킨텍스점","경기 고양시 일산서구 킨텍스로 171"],["이마트 구로점","서울 구로구 디지털로32길 43"],["세븐일레븐 역촌아이언점","서울 은평구 진흥로9길 12 아이언아파트 상가 1층 102호"],["이마트 풍산점","경기 고양시 일산동구 무궁화로 237"],["GS더프레시 목동7점","서울 양천구 목동로 212 목동7단지아파트 상가 1층"],["세븐일레븐 신정역","서울 양천구 오목로 151"],["이마트 수색점","서울 은평구 수색로 217"],["이마트 과천점","경기 과천시 별양상가3로 11"],["영풍문고 IFC몰점","서울 영등포구 국제금융로 10 지하2층"]];
+
+  const LS_KEY = "tagwallet.v1";
+  const LS_COLL = "tagwallet.collection.v1";
+  let cards = [];           // {id,type,name,note,src,assetId,qr(base64 원본 바이트),qrText}
+  // 공식 홈페이지 「서포트 포켓몬 티켓 리스트」에 실린 티켓 (2026-11-19). 지울 수 없는 기본 카드.
+  // official:true = 페이지에 들어 있는 기본 카드(저장·고치기·지우기 안 됨). badge 는 카드 위 표시.
+  const OFFICIAL = [
+    {id:"off-changpa", type:"support", name:"창파나이트", note:"공식 서포트 티켓", src:"tickets/changpa.jpg", qr:"PBrwNioM8wSfuwr8viyj+VBPS0VNT04wMt0=", qrText:"", official:true, badge:"공식"},
+    {id:"off-ttarakyu", type:"support", name:"따라큐", note:"공식 서포트 티켓", src:"tickets/ttarakyu.jpg", qr:"0JH/CMTQAS09Ppl08vX/ilBPS0VNT04wMt0=", qrText:"", official:true, badge:"공식"}
+  ];
+  let mode = "local";       // "cloud" | "local"
+  let db = null, assets = null, docRef = null;
+  let editing = null;       // {type, dataUrl|blob}
+  let pendingDelete = null;
+
+  const $ = s => document.querySelector(s);
+  const status = $("#status");
+
+  function toast(msg){
+    const t = $("#toast"); t.textContent = msg; t.style.display = "block";
+    clearTimeout(toast._t); toast._t = setTimeout(()=>t.style.display="none", 2200);
+  }
+  function uid(){ return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+  function el(tag, cls, text){ const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  // ---------- storage ----------
+  function loadLocal(){
+    try { const v = JSON.parse(localStorage.getItem(LS_KEY) || "[]"); if (Array.isArray(v)) cards = v; } catch(e){}
+  }
+  function saveLocal(){
+    try { localStorage.setItem(LS_KEY, JSON.stringify(cards)); return true; }
+    catch(e){ toast("이 브라우저에 저장 공간이 부족해요"); return false; }
+  }
+  let saving = Promise.resolve();
+  // 실패하면 거부(reject)된 promise 를 돌려준다 — 부르는 쪽이 되돌리기·알림을 한다
+  let queuedBase = null;
+  function persist(baseOverride){
+    if (mode === "cloud" && docRef){
+      const b = { cards: cards.map(c => ({id:c.id,type:c.type,name:c.name,note:c.note||"",src:c.src||"",assetId:c.assetId||"",qr:c.qr||"",qrText:c.qrText||""})), updatedAt: new Date().toISOString() };
+      const base = (baseOverride !== undefined) ? baseOverride : (queuedBase || { cards: lastSnapCards.map(c => Object.assign({}, c)) });
+      queuedBase = b;
+      const p = saving.then(() => docRef.set(b, base));
+      saving = p.catch(() => {}).then(() => { if (queuedBase === b) queuedBase = null; });
+      return p;
+    }
+    return saveLocal() ? Promise.resolve() : Promise.reject(new Error("이 브라우저에 저장 공간이 부족해요"));
+  }
+  function errText(e){ return (e && (e.code || e.message)) || "오류"; }
+  let cloudPending = false;
+  let lastSnapCards = [];
+  function restoreCards(before){ return mode === "cloud" ? lastSnapCards.map(c => Object.assign({}, c)) : before; }
+  const MIG_SKIP = "tagwallet.migrate.skip";
+  let migrateTried = false;
+  // 처음 로그인한 휴대폰: 그 전에 이 휴대폰에만 넣어 둔 카드를 가족 지갑에 올릴지 한 번 묻는다
+  async function migrateLocal(){
+    if (migrateTried || cardSaving) return; migrateTried = true;
+    let local = [], skip = false;
+    try { local = JSON.parse(localStorage.getItem(LS_KEY) || "[]"); skip = localStorage.getItem(MIG_SKIP) === "1"; } catch(e){}
+    if (skip || !Array.isArray(local)) return;
+    const have = new Set(cards.map(c => c.id));
+    const add = local.filter(c => c && c.id && !c.official && !have.has(c.id));
+    if (!add.length) return;
+    if (!confirm("이 휴대폰에만 있던 카드 " + add.length + "장을 가족 지갑에 올릴까요?")){ try { localStorage.setItem(MIG_SKIP, "1"); } catch(e){} return; }
+    cardSaving = true;
+    try {
+      // 사진을 올리는 동안 가족 자료가 새로 와도 섞이지 않게 따로 모았다가 한 번에 붙인다
+      const added = [];
+      for (const c0 of add){
+        const c = Object.assign({}, c0);
+        if (c.src && c.src.indexOf("data:") === 0){
+          try { const blob = await (await fetch(c.src)).blob(); const up = await assets.upload(blob); c.src = up.url; c.assetId = up.id; }
+          catch(e){ c.src = ""; c.assetId = ""; }
+        }
+        added.push(c);
+      }
+      const now = new Set(cards.map(c => c.id));
+      const fresh = added.filter(c => !now.has(c.id));
+      const base = { cards: cards.map(c => Object.assign({}, c)) };   // 올릴 카드가 「새 카드」로 보이게 지금 목록을 base 로
+      fresh.forEach(c => cards.push(c));
+      render(); await persist(base);
+      const done = new Set(cards.map(c => c.id));
+      const left = local.filter(c => !(c && done.has(c.id)));
+      try { localStorage.setItem(LS_KEY + ".backup", localStorage.getItem(LS_KEY) || "[]"); localStorage.setItem(LS_KEY, JSON.stringify(left)); } catch(e){}
+      if (left.some(c => c && c.id && !c.official)) migrateTried = false;
+      toast("카드 " + fresh.length + "장을 가족 지갑에 올렸어요");
+    } catch(e){ toast("올리지 못했어요: " + errText(e)); migrateTried = false; }
+    finally { cardSaving = false; }
+  }   // 계정 연결을 기다리는 중이면 카드 저장을 잠시 막는다
+
+  async function initCloud(){
+    if (!window.claude || !window.claude.use) return;
+    cloudPending = true;
+    try {
+      const [d, a, u] = await Promise.all([
+        claude.use("db").catch(()=>null), claude.use("assets").catch(()=>null), claude.use("user").catch(()=>null)
+      ]);
+      if (!d || !u){ cloudPending = false; return; }
+      const id = await u.id();
+      if (!id){ cloudPending = false; return; }
+      db = d; assets = a;
+      docRef = db.doc("data/users/" + id + "/wallet");
+      const timer = setTimeout(()=>{ if (mode === "cloud"){ cloudPending = false; status.textContent = "📴 인터넷 없음 · 연결되면 올라가요"; } else status.textContent = "연결 지연 · 가족 지갑을 받는 중"; }, 10000);
+      docRef.onSnapshot(snap => {
+        if (!snap.metadata.fromCache) clearTimeout(timer);
+        cloudPending = false;
+        mode = "cloud";
+        status.textContent = assets ? "☁️ 가족 지갑" : "☁️ 보기 전용";
+        if (snap.exists){
+          const body = snap.data() || {};
+          cards = Array.isArray(body.cards) ? body.cards.map(c => Object.assign({}, c)) : [];
+          lastSnapCards = cards.map(c => Object.assign({}, c));
+          render();
+          if (!snap.metadata.fromCache && assets) migrateLocal();
+        } else {
+          cards = []; lastSnapCards = [];
+          render();
+          if (!snap.metadata.fromCache && assets) migrateLocal();
+        }
+      }, err => {
+        clearTimeout(timer);
+        cloudPending = false;
+        mode = "local"; status.textContent = "이 기기에만 보관";
+      });
+      initCollectionCloud(id);
+    } catch(e){ cloudPending = false; /* stay local */ }
+  }
+
+  // ---------- image handling ----------
+  function readImage(file){
+    return new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const max = 1400;
+          let w = img.naturalWidth, h = img.naturalHeight;
+          const k = Math.min(1, max / Math.max(w, h));
+          w = Math.round(w*k); h = Math.round(h*k);
+          const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+          const ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0,0,w,h);
+          ctx.drawImage(img, 0, 0, w, h);
+          cv.toBlob(b => { res({ blob: b, dataUrl: cv.toDataURL("image/jpeg", 0.9), canvas: cv }); }, "image/jpeg", 0.9);
+        };
+        img.onerror = rej;
+        img.src = fr.result;
+      };
+      fr.onerror = rej;
+      fr.readAsDataURL(file);
+    });
+  }
+
+  // ---------- QR (읽기·그리기) ----------
+  // 기계가 읽는 QR 은 글자가 아닌 바이트(예: 서포트 티켓 26바이트)라서 원본 바이트를 base64 로 그대로 보관한다.
+  function bytesToB64(bytes){ let s = ""; for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i] & 255); return btoa(s); }
+  function b64ToBin(b64){ try { return atob(b64); } catch(e){ return ""; } }
+  function qrTextOf(bytes){
+    try {
+      const s = new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(bytes));
+      if (s && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\uFFFD]/.test(s)) return s;
+    } catch(e){}
+    return "";
+  }
+  function decodeQR(canvas){
+    if (typeof window.jsQR !== "function" || !canvas) return null;
+    const W = canvas.width, H = canvas.height, big = Math.max(W, H);
+    const sizes = [big, 1000, 720, 480].filter((s, i, a) => s <= big && a.indexOf(s) === i);
+    for (const s of sizes){
+      const k = s / big, w = Math.max(1, Math.round(W * k)), h = Math.max(1, Math.round(H * k));
+      let cv = canvas;
+      if (k !== 1){ cv = document.createElement("canvas"); cv.width = w; cv.height = h; cv.getContext("2d").drawImage(canvas, 0, 0, w, h); }
+      try {
+        const d = cv.getContext("2d").getImageData(0, 0, w, h);
+        const q = window.jsQR(d.data, w, h, { inversionAttempts: "attemptBoth" });
+        if (q && q.binaryData && q.binaryData.length){
+          const bytes = Array.from(q.binaryData);
+          return { b64: bytesToB64(bytes), text: qrTextOf(bytes), len: bytes.length };
+        }
+      } catch(e){}
+    }
+    return null;
+  }
+  const qrCache = {};
+  function qrDataUrl(b64, scale){
+    const key = b64 + "|" + scale;
+    if (qrCache[key]) return qrCache[key];
+    if (typeof window.qrcode !== "function" || !b64) return "";
+    const bin = b64ToBin(b64); if (!bin) return "";
+    let q = null;
+    for (const ec of ["M", "L"]){
+      try { q = window.qrcode(0, ec); q.addData(bin, "Byte"); q.make(); break; } catch(e){ q = null; }
+    }
+    if (!q) return "";
+    const n = q.getModuleCount(), quiet = 4, size = (n + quiet * 2) * scale;
+    const cv = document.createElement("canvas"); cv.width = size; cv.height = size;
+    const ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, size, size); ctx.fillStyle = "#000";
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) ctx.fillRect((c + quiet) * scale, (r + quiet) * scale, scale, scale);
+    return (qrCache[key] = cv.toDataURL("image/png"));
+  }
+  function qrBytesLen(b64){ return b64ToBin(b64).length; }
+  function qrInfoText(c){
+    if (!c.qr) return "QR 정보 없음 · 사진만 있어요";
+    return c.qrText ? "QR 내용: " + c.qrText : "기계용 QR 코드 (" + qrBytesLen(c.qr) + "바이트) ✓";
+  }
+  // 카드 그림: 사진이 있으면 사진, 없으면 QR
+  function pic(s){ return (s && s.indexOf("fbimg:") === 0) ? ((window.__tw && window.__tw.img(s)) || "") : (s || ""); }
+  function thumbOf(c){ return pic(c.src) || (c.qr ? qrDataUrl(c.qr, 8) : ""); }
+  function allOf(type){ return cards.filter(c => c.type === type).concat(OFFICIAL.filter(c => c.type === type)); }
+
+  // ---------- render (wallet) ----------
+  function cardEl(c){
+    const el = document.createElement("div");
+    el.className = "card";
+    el.innerHTML = '<div class="imgwrap"><img alt=""></div><div class="meta"><div><div class="name"></div><div class="note"></div></div><div class="tap">눌러서 크게 ›</div></div>';
+    const im = el.querySelector("img"); im.src = thumbOf(c); if (!pic(c.src)) im.className = "qr"; if (c.src && c.src.indexOf("fbimg:") === 0) im.dataset.fb = c.src;
+    el.querySelector(".name").textContent = c.name || "(이름 없음)";
+    el.querySelector(".note").textContent = c.note || "";
+    if (c.qr) el.insertAdjacentHTML("beforeend", '<span class="mark">QR ✓</span>');
+    if (c.official) el.insertAdjacentHTML("beforeend", '<span class="mark off">' + (c.badge || "공식") + '</span>');
+    el.addEventListener("click", () => openScan(c));
+    return el;
+  }
+  function fillCarousel(type, carId, dotsId){
+    const car = $(carId), dots = $(dotsId);
+    car.innerHTML = ""; dots.innerHTML = "";
+    const list = allOf(type);
+    if (!list.length){
+      car.innerHTML = '<div class="empty" style="flex:0 0 100%">아직 카드가 없어요<br><br></div>';
+      const b = document.createElement("button"); b.className = "btn primary small"; b.textContent = "+ QR 등록하기";
+      b.onclick = () => openAdd(type); car.querySelector(".empty").appendChild(b);
+      return list.length;
+    }
+    list.forEach((c,i) => {
+      car.appendChild(cardEl(c));
+      const d = document.createElement("span"); d.className = "dot" + (i===0?" on":""); dots.appendChild(d);
+    });
+    car.onscroll = () => {
+      const i = Math.round(car.scrollLeft / (car.clientWidth + 12));
+      [...dots.children].forEach((d,j)=>d.classList.toggle("on", j===i));
+    };
+    return list.length;
+  }
+  function render(){
+    $("#tCount").textContent = fillCarousel("trainer", "#trainerCarousel", "#trainerDots");
+    $("#sCount").textContent = fillCarousel("support", "#supportCarousel", "#supportDots");
+    const ml = $("#manageList"); ml.innerHTML = "";
+    if (!cards.length) ml.innerHTML = '<div class="empty">카드가 없어요</div>';
+    const rowOf = c => {
+      const row = document.createElement("div"); row.className = "list-item";
+      row.innerHTML = '<img alt=""><div class="grow"><div class="t"></div><div class="s"></div></div>';
+      const im = row.querySelector("img"); im.src = thumbOf(c); if (!pic(c.src)) im.className = "qr"; if (c.src && c.src.indexOf("fbimg:") === 0) im.dataset.fb = c.src;
+      row.querySelector(".t").textContent = c.name || "(이름 없음)";
+      row.querySelector(".s").textContent = (c.type === "trainer" ? "트레이너 ID" : "서포트 카드") + (c.qr ? " · QR ✓" : "") + (c.note ? " · " + c.note : "");
+      return row;
+    };
+    cards.forEach((c, i) => {
+      const row = rowOf(c);
+      const up = mkBtn("▲", () => move(i, -1)); up.disabled = i === 0;
+      const dn = mkBtn("▼", () => move(i, 1)); dn.disabled = i === cards.length - 1;
+      const ed = mkBtn("고치기", () => openAdd(c.type, c));
+      const del = mkBtn("지우기", () => askDelete(c)); del.className = "btn small danger";
+      const acts = el("div", "acts"); acts.append(up, dn, ed, del); row.appendChild(acts);
+      ml.appendChild(row);
+    });
+    if (OFFICIAL.length){
+      ml.appendChild(el("div", "sublabel", "미리 넣어 둔 카드 (지울 수 없어요)"));
+      OFFICIAL.forEach(c => { const row = rowOf(c); row.style.cursor = "pointer"; row.onclick = () => openScan(c); ml.appendChild(row); });
+    }
+  }
+  function mkBtn(t, fn){ const b = document.createElement("button"); b.className = "btn small ghost"; b.textContent = t; b.onclick = fn; return b; }
+  function move(i, d){
+    const j = i + d; if (j < 0 || j >= cards.length) return;
+    [cards[i], cards[j]] = [cards[j], cards[i]]; render();
+    persist().catch(e => { if (mode === "cloud") cards = restoreCards(null); else [cards[i], cards[j]] = [cards[j], cards[i]]; render(); toast("저장 실패: " + errText(e)); });
+  }
+
+  // ---------- scan (카드 크게 보기 · 불러오기) ----------
+  let scanCard = null, scanView = "qr";
+  function openScan(c){
+    scanCard = c;
+    scanView = c.qr && qrDataUrl(c.qr, 12) ? "qr" : "photo";
+    renderScan();
+    $("#scanOverlay").classList.add("show");
+  }
+  function renderScan(){
+    const c = scanCard; if (!c) return;
+    const im = $("#scanImg");
+    const qrUrl = c.qr ? qrDataUrl(c.qr, 12) : "";
+    if (scanView === "qr" && !qrUrl) scanView = "photo";
+    if (scanView === "photo" && !c.src && qrUrl) scanView = "qr";
+    im.src = scanView === "qr" ? qrUrl : pic(c.src);
+    im.className = scanView === "qr" ? "qr" : "";
+    $("#scanName").textContent = c.name || "";
+    const sw = $("#scanSwitch");
+    sw.hidden = !(qrUrl && c.src);
+    sw.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.s === scanView));
+    const info = $("#scanInfo"); info.innerHTML = "";
+    const line1 = el("div"); line1.append(el("b", null, c.type === "trainer" ? "트레이너 ID" : "서포트 카드"));
+    if (c.note) line1.append(document.createTextNode(" · " + c.note));
+    info.append(line1, el("div", null, qrInfoText(c)));
+    if (c.qr && !qrUrl) info.append(el("div", null, "QR 그리기 도구를 불러오지 못해 사진으로 보여 줘요."));
+    $("#scanEdit").hidden = !!c.official;
+  }
+  $("#scanSwitch").querySelectorAll("button").forEach(b => b.onclick = () => { scanView = b.dataset.s; renderScan(); });
+  $("#scanEdit").onclick = () => { const c = scanCard; $("#scanOverlay").classList.remove("show"); if (c && !c.official) openAdd(c.type, c); };
+  $("#closeScan").onclick = () => $("#scanOverlay").classList.remove("show");
+  $("#scanOverlay").addEventListener("click", e => { if (e.target.id === "scanOverlay" || e.target.id === "scanBody") $("#scanOverlay").classList.remove("show"); });
+
+  // ---------- add / edit ----------
+  function setType(t){
+    editing.type = t;
+    document.querySelectorAll("#typeSeg button").forEach(b => b.classList.toggle("on", b.dataset.type === t));
+  }
+  function setQrState(kind, msg, b64){
+    const s = $("#qrState"); s.className = "qrstate" + (kind ? " " + kind : ""); s.innerHTML = "";
+    const url = b64 ? qrDataUrl(b64, 4) : "";
+    if (url){ const im = new Image(); im.src = url; im.className = "qr"; im.alt = ""; s.appendChild(im); }
+    s.appendChild(el("span", null, msg));
+  }
+  function showPreview(src){
+    const p = $("#preview"); p.innerHTML = "";
+    if (src && pic(src)){ const im = new Image(); im.src = pic(src); p.appendChild(im); } else if (src) p.innerHTML = '<span style="color:#888;font-size:13px">사진 불러오는 중…</span>';
+    else p.innerHTML = '<span style="color:#888;font-size:13px">사진을 고르면 여기에 보여요</span>';
+  }
+  function openAdd(type, card){
+    if (cardSaving){ toast("저장하는 중이에요. 잠시만요"); return; }
+    editing = { id: card ? card.id : null, type: (card && card.type) || type || "support", img: null,
+                qr: card && card.qr ? { b64: card.qr, text: card.qrText || "" } : null };
+    setType(editing.type);
+    $("#addTitle").textContent = card ? "카드 고치기" : "카드 추가";
+    $("#nameIn").value = card ? (card.name || "") : ""; $("#noteIn").value = card ? (card.note || "") : "";
+    $("#fileIn").value = ""; $("#camIn").value = "";
+    showPreview(card ? card.src : "");
+    if (editing.qr) setQrState("ok", "✅ 저장된 QR이 있어요. 다시 찍으면 바뀌어요.", editing.qr.b64);
+    else setQrState("", editing.type === "trainer"
+      ? "트레이너 ID의 QR을 카메라로 찍거나, ID 화면 캡처를 골라 주세요."
+      : "서포트 티켓의 QR을 카메라로 찍거나, 티켓 사진을 골라 주세요.");
+    $("#addOverlay").classList.add("show");
+  }
+  document.querySelectorAll("#typeSeg button").forEach(b => b.onclick = () => setType(b.dataset.type));
+  document.querySelectorAll("[data-add]").forEach(b => b.addEventListener("click", () => openAdd(b.dataset.add)));
+  $("#cancelAdd").onclick = () => $("#addOverlay").classList.remove("show");
+  async function onPick(e){
+    const f = e.target.files && e.target.files[0]; if (!f || !editing) return;
+    setQrState("", "QR을 찾는 중…");
+    try {
+      const img = await readImage(f);
+      editing.img = img;
+      showPreview(img.dataUrl);
+      const q = decodeQR(img.canvas);
+      if (q){
+        editing.qr = q;
+        setQrState("ok", "✅ QR을 읽었어요! " + (q.text ? "내용: " + q.text : "(기계용 코드 " + q.len + "바이트)"), q.b64);
+      } else {
+        // 새 사진에 QR이 없으면 앞 사진(또는 예전)의 QR을 남기지 않는다 — 사진과 QR이 엇갈리지 않게
+        const had = !!editing.qr;
+        editing.qr = null;
+        setQrState("bad", (typeof window.jsQR !== "function"
+            ? "QR 읽기 도구를 불러오지 못했어요."
+            : "이 사진에서 QR을 못 찾았어요. QR이 크고 밝게 나오게 다시 찍어 주세요.")
+          + (had ? " 지금 저장하면 QR 없이 사진만 저장돼요. (취소하면 예전 그대로)" : " 지금 저장하면 사진만 저장돼요."));
+      }
+      if (!$("#nameIn").value) $("#nameIn").value = editing.type === "trainer" ? "트레이너 ID" : "";
+    } catch(err){ setQrState("bad", "사진을 읽지 못했어요"); }
+    e.target.value = "";
+  }
+  $("#fileIn").onchange = onPick;
+  $("#camIn").onchange = onPick;
+  let cardSaving = false;
+  $("#saveAdd").onclick = async () => {
+    if (!editing || cardSaving) return;
+    if (cloudPending){ toast("계정에 연결하는 중이에요. 잠시 뒤 다시 눌러 주세요"); return; }
+    // 저장하는 동안 다른 카드를 열어도 섞이지 않도록 지금 값을 잡아 둔다
+    const ed = editing, name = $("#nameIn").value.trim(), note = $("#noteIn").value.trim();
+    const old = ed.id ? cards.find(x => x.id === ed.id) : null;
+    if (!ed.img && !ed.qr && !(old && old.src)){ toast("QR을 찍거나 사진을 먼저 골라 주세요"); return; }
+    if (ed.img && mode === "cloud" && !assets){ toast("이 화면에서는 사진을 넣을 수 없어요 (보기 전용)"); return; }
+    const btn = $("#saveAdd"), cancel = $("#cancelAdd");
+    cardSaving = true; btn.disabled = true; cancel.disabled = true; btn.textContent = "저장 중…";
+    const before = cards.map(c => Object.assign({}, c));
+    let newAsset = "";
+    try {
+      let src = old ? (old.src || "") : "", assetId = old ? (old.assetId || "") : "";
+      const oldAsset = assetId;
+      if (ed.img){
+        if (mode === "cloud" && assets){
+          const up = await assets.upload(ed.img.blob);
+          src = up.url || ("/_blob/" + up.id); assetId = newAsset = up.id;
+        } else { src = ed.img.dataUrl; assetId = ""; }
+      }
+      const fields = { type: ed.type, name, note, src, assetId,
+                       qr: ed.qr ? ed.qr.b64 : "", qrText: ed.qr ? (ed.qr.text || "") : "" };
+      // 사진 올리는 사이 계정 자료가 새로 들어왔을 수 있어 id 로 다시 찾는다
+      const cur = ed.id ? cards.find(x => x.id === ed.id) : null;
+      if (cur) Object.assign(cur, fields);
+      else cards.push(Object.assign({ id: ed.id || uid() }, fields));
+      render(); await persist();
+      if (oldAsset && oldAsset !== assetId && assets){ try { await assets.delete(oldAsset); } catch(e){} }
+      $("#addOverlay").classList.remove("show"); toast("저장했어요");
+    } catch(err){
+      cards = restoreCards(before); render();
+      if (newAsset && assets){ try { await assets.delete(newAsset); } catch(e){} }
+      toast("저장 실패: " + errText(err));
+    } finally { cardSaving = false; btn.disabled = false; cancel.disabled = false; btn.textContent = "저장"; }
+  };
+
+  // ---------- delete ----------
+  function askDelete(c){
+    pendingDelete = c; $("#confirmText").textContent = "「" + (c.name || "이름 없음") + "」 카드를 지웁니다. 되돌릴 수 없어요.";
+    $("#confirmOverlay").classList.add("show");
+  }
+  $("#confirmNo").onclick = () => { pendingDelete = null; $("#confirmOverlay").classList.remove("show"); };
+  $("#confirmYes").onclick = async () => {
+    const c = pendingDelete; $("#confirmOverlay").classList.remove("show"); if (!c) return;
+    const before = cards.slice();
+    cards = cards.filter(x => x.id !== c.id); render();
+    try { await persist(); }
+    catch(e){ cards = restoreCards(before); render(); toast("지우지 못했어요: " + errText(e)); return; }
+    if (c.assetId && assets){ try { await assets.delete(c.assetId); } catch(e){} }
+    toast("지웠어요");
+  };
+
+  // =====================================================================
+  // ---------- collection (도감 counts + favorite stores) ----------
+  // =====================================================================
+  let coll = { counts: {}, favStores: [] };
+  let collMode = "local", collRef = null, collBase = null, collPending = null, collStart = null, collFirst = true;
+  let collTimer = null, collWriting = false, collDirty = false;
+
+  function normColl(v){
+    const out = { counts: {}, favStores: [] };
+    if (v && typeof v === "object"){
+      if (v.counts && typeof v.counts === "object"){
+        for (const k in v.counts){ const n = Math.floor(Number(v.counts[k])); if (n > 0) out.counts[k] = Math.min(n, 999); }
+      }
+      if (Array.isArray(v.favStores)) out.favStores = v.favStores.filter(x => typeof x === "string").slice(0, 200);
+    }
+    return out;
+  }
+  function loadCollLocal(){
+    try { coll = normColl(JSON.parse(localStorage.getItem(LS_COLL) || "{}")); } catch(e){}
+  }
+  function saveCollLocal(){
+    try { localStorage.setItem(LS_COLL, JSON.stringify({ counts: coll.counts, favStores: coll.favStores, updatedAt: new Date().toISOString() })); }
+    catch(e){ toast("이 브라우저에 저장 공간이 부족해요"); }
+  }
+  function scheduleCollSave(){
+    if (collMode !== "cloud" || !collRef){ saveCollLocal(); return; }
+    clearTimeout(collTimer);
+    collTimer = setTimeout(() => { collTimer = null; flushColl(); }, 800);
+  }
+  async function flushColl(){
+    if (collWriting){ collDirty = true; return; }
+    collWriting = true; collDirty = false;
+    try {
+      const body = { counts: Object.assign({}, coll.counts), favStores: coll.favStores.slice(), updatedAt: new Date().toISOString() }; const base = collBase; collBase = { counts: Object.assign({}, body.counts), favStores: body.favStores.slice() }; try { await collRef.set(body, base); } catch(e){ collBase = base; throw e; } if (!collDirty && !collTimer) saveCollBase();
+    } catch(e){ toast("기록 저장 실패: " + (e && e.code || "오류")); }
+    collWriting = false;
+    if (collDirty && !collTimer) flushColl();
+    else if (!collDirty && !collTimer && collPending){ const s = collPending; collPending = null; applyCollSnap(s); }
+  }
+  const MIG_COLL = "tagwallet.collection.migrated", LS_COLL_BASE = "tagwallet.collection.base";
+  // 가족 자료를 이 휴대폰에도 적어 둔다: 로그아웃·연결 실패 때는 이 값에서 시작하고, 다음 연결 때 「그 뒤에 누른 것」만 더한다
+  function saveCollBase(){
+    try { const v = JSON.stringify({ counts: coll.counts, favStores: coll.favStores }); localStorage.setItem(LS_COLL, v); localStorage.setItem(LS_COLL_BASE, v); } catch(e){}
+  }
+  function startBase(){
+    try { if (localStorage.getItem(MIG_COLL) === "1"){ const b = localStorage.getItem(LS_COLL_BASE); if (b) return normColl(JSON.parse(b)); } } catch(e){}
+    return JSON.parse(JSON.stringify(coll));
+  }
+  function applyCollSnap(snap){
+    const srv = snap.exists ? normColl(snap.data()) : { counts: {}, favStores: [] };
+    collBase = JSON.parse(JSON.stringify(srv));
+    if (!collFirst){ coll = srv; saveCollBase(); renderDex(); renderStores(true); return; }
+    collFirst = false;
+    const now = coll, start = collStart || { counts: {}, favStores: [] };
+    let migrated = false; try { migrated = localStorage.getItem(MIG_COLL) === "1"; } catch(e){}
+    const out = { counts: Object.assign({}, srv.counts), favStores: srv.favStores.slice() };
+    const keys = new Set(Object.keys(now.counts).concat(Object.keys(start.counts)));
+    keys.forEach(k => {
+      const n = now.counts[k] || 0, s = start.counts[k] || 0, v = out.counts[k] || 0;
+      const r = migrated ? v + (n - s) : Math.max(v, n);
+      if (r > 0) out.counts[k] = Math.min(r, 999); else delete out.counts[k];
+    });
+    if (migrated){
+      now.favStores.filter(x => start.favStores.indexOf(x) < 0 && out.favStores.indexOf(x) < 0).forEach(x => out.favStores.push(x));
+      out.favStores = out.favStores.filter(x => !(start.favStores.indexOf(x) >= 0 && now.favStores.indexOf(x) < 0));
+    } else now.favStores.forEach(x => { if (out.favStores.indexOf(x) < 0) out.favStores.push(x); });
+    try { localStorage.setItem(MIG_COLL, "1"); } catch(e){}
+    coll = out; renderDex(); renderStores(true);
+    if (JSON.stringify(out) !== JSON.stringify(srv)) scheduleCollSave(); else saveCollBase();
+  }
+  function initCollectionCloud(id){
+    try {
+      const ref = db.doc("data/users/" + id + "/collection");
+      ref.onSnapshot(snap => {
+        collRef = ref; collMode = "cloud";
+        // don't clobber taps that are waiting to be written
+        if (collTimer || collWriting || collDirty){ collPending = snap; return; }
+        collPending = null; applyCollSnap(snap);
+      }, err => { collMode = "local"; collRef = null; });
+    } catch(e){ /* stay local */ }
+  }
+
+  // ---------- 도감 ----------
+  const SERIES = [];
+  (TAGS.series || []).forEach(s => {
+    SERIES.push({
+      id: s.id, label: s.name.replace(/^스타태그\s*/, "").replace("스타더스트 ", ""), title: s.name, release: s.release,
+      upcoming: !!s.upcoming,
+      groups: (s.groups || []).map(g => ({
+        grade: g.grade, star: g.star,
+        tags: g.tags.map(t => { const i = t.indexOf(" "); return { code: s.prefix + t.slice(0, i), name: t.slice(i + 1) }; })
+      }))
+    });
+  });
+  if (TAGS.regular){
+    SERIES.push({
+      id: "R", label: "레귤러", title: TAGS.regular.name, release: "", note: TAGS.regular.note, upcoming: false,
+      groups: [{ grade: TAGS.regular.name, star: "R",
+        tags: TAGS.regular.tags.map(t => { const i = t.indexOf(" "); return { code: t.slice(0, i), name: t.slice(i + 1) }; }) }]
+    });
+  }
+  SERIES.forEach(s => { s.codes = []; s.groups.forEach(g => g.tags.forEach(t => s.codes.push(t.code))); });
+  const ALL_CODES = SERIES.reduce((a, s) => a.concat(s.codes), []);
+
+  let dexSeries = SERIES[0] ? SERIES[0].id : null;
+  let dexFilter = "all", dexQuery = "";
+
+  function ownedIn(codes){ let n = 0; codes.forEach(c => { if ((coll.counts[c] || 0) > 0) n++; }); return n; }
+  function fmtDate(d){ if (!d) return ""; const p = d.split("-"); return p[0] + "년 " + Number(p[1]) + "월 " + Number(p[2]) + "일"; }
+  function gradeLabel(g){
+    if (g.star === "R") return "레귤러";
+    return "★" + g.star + (g.star === 6 ? " 슈퍼스타" : g.star === 5 ? " 스타" : "");
+  }
+
+  function renderSeriesChips(){
+    const box = $("#seriesChips"); box.innerHTML = "";
+    SERIES.forEach(s => {
+      const b = el("button", "chip" + (s.id === dexSeries ? " on" : ""), s.label);
+      if (s.upcoming){ b.appendChild(el("small", null, "예정")); }
+      else { b.appendChild(el("small", null, ownedIn(s.codes) + "/" + s.codes.length)); }
+      b.onclick = () => { dexSeries = s.id; renderDex(); };
+      box.appendChild(b);
+    });
+  }
+
+  function renderDexProgress(){
+    const all = ownedIn(ALL_CODES);
+    $("#dexAllNum").textContent = all; $("#dexAllTot").textContent = ALL_CODES.length;
+    $("#dexAllBar").style.width = (ALL_CODES.length ? all / ALL_CODES.length * 100 : 0) + "%";
+    const s = SERIES.find(x => x.id === dexSeries); if (!s) return;
+    const n = ownedIn(s.codes), tot = s.codes.length;
+    $("#seriesProg").hidden = s.upcoming;
+    $("#dexSerNum").textContent = n; $("#dexSerTot").textContent = tot;
+    const pct = tot ? Math.round(n / tot * 100) : 0;
+    $("#dexSerPct").textContent = pct + "%"; $("#dexSerBar").style.width = pct + "%";
+    let meta = s.title;
+    if (s.release) meta += " · " + fmtDate(s.release) + (s.upcoming ? " 가동 예정" : " 가동");
+    if (s.note) meta += " · " + s.note;
+    $("#seriesMeta").textContent = meta;
+  }
+
+  function setCount(code, delta){
+    const cur = coll.counts[code] || 0;
+    const next = Math.max(0, Math.min(999, cur + delta));
+    if (next === cur) return;
+    if (next > 0) coll.counts[code] = next; else delete coll.counts[code];
+    scheduleCollSave();
+    renderDex(code);
+  }
+
+  function tagRow(t, gcls){
+    const row = el("div", "tag" + ((coll.counts[t.code] || 0) > 0 ? " own" : ""));
+    row.dataset.code = t.code;
+    row.appendChild(el("span", "code", t.code));
+    row.appendChild(el("span", "tn", t.name));
+    const ctr = el("div", "ctr");
+    const n = coll.counts[t.code] || 0;
+    const minus = el("button", "minus", "−"); minus.setAttribute("aria-label", t.name + " 하나 빼기"); minus.disabled = n === 0;
+    const num = el("span", "n", String(n));
+    const plus = el("button", "plus", "+"); plus.setAttribute("aria-label", t.name + " 하나 더하기");
+    minus.onclick = () => setCount(t.code, -1);
+    plus.onclick = () => setCount(t.code, 1);
+    ctr.append(minus, num, plus);
+    row.appendChild(ctr);
+    return row;
+  }
+
+  function renderDex(changedCode){
+    renderSeriesChips();
+    renderDexProgress();
+    const s = SERIES.find(x => x.id === dexSeries);
+    const list = $("#dexList");
+    $("#dexToolbar").hidden = !s || s.upcoming;
+    // fast path: only update the changed row when filter keeps it visible
+    if (changedCode && dexFilter === "all"){
+      const row = list.querySelector('.tag[data-code="' + CSS.escape(changedCode) + '"]');
+      if (row){
+        const n = coll.counts[changedCode] || 0;
+        row.classList.toggle("own", n > 0);
+        row.querySelector(".n").textContent = n;
+        row.querySelector(".minus").disabled = n === 0;
+        updateGroupCounts();
+        return;
+      }
+    }
+    list.innerHTML = "";
+    if (!s) return;
+    if (s.upcoming){
+      const box = el("div", "upcoming");
+      box.appendChild(el("div", "big", "✨"));
+      box.appendChild(el("h4", null, s.title + " 준비 중!"));
+      box.appendChild(el("p", null, fmtDate(s.release) + "부터 순차 가동 예정 · 태그 목록은 공식 발표 후 추가돼요"));
+      list.appendChild(box);
+      return;
+    }
+    const q = dexQuery.trim().toLowerCase();
+    let shown = 0;
+    s.groups.forEach(g => {
+      const gcls = g.star === "R" ? "gR" : "g" + g.star;
+      const tags = g.tags.filter(t => {
+        const own = (coll.counts[t.code] || 0) > 0;
+        if (dexFilter === "own" && !own) return false;
+        if (dexFilter === "miss" && own) return false;
+        if (q && t.name.toLowerCase().indexOf(q) < 0 && t.code.toLowerCase().indexOf(q) < 0) return false;
+        return true;
+      });
+      if (!tags.length) return;
+      const head = el("div", "gradehead");
+      head.appendChild(el("span", "gb " + gcls, gradeLabel(g)));
+      head.appendChild(el("span", null, g.grade.replace(/\s*\(★\d\)/, "")));
+      const gc = el("span", "gc"); gc.dataset.codes = g.tags.map(t => t.code).join(",");
+      head.appendChild(gc);
+      list.appendChild(head);
+      tags.forEach(t => list.appendChild(tagRow(t, gcls)));
+      shown += tags.length;
+    });
+    updateGroupCounts();
+    if (!shown){
+      const msg = dexFilter === "own" && !q ? "아직 모은 태그가 없어요. + 를 눌러 기록해 보세요!" :
+                  dexFilter === "miss" && !q ? "와! 이 탄은 다 모았어요 🎉" : "찾는 태그가 없어요";
+      list.appendChild(el("div", "empty", msg));
+    }
+  }
+  function updateGroupCounts(){
+    document.querySelectorAll("#dexList .gc").forEach(gc => {
+      const codes = gc.dataset.codes.split(",");
+      gc.textContent = ownedIn(codes) + " / " + codes.length;
+    });
+  }
+
+  document.querySelectorAll("#dexFilter button").forEach(b => b.onclick = () => {
+    dexFilter = b.dataset.f;
+    document.querySelectorAll("#dexFilter button").forEach(x => x.classList.toggle("on", x === b));
+    renderDex();
+  });
+  $("#dexSearch").addEventListener("input", e => { dexQuery = e.target.value; renderDex(); });
+
+  // ---------- 매장 ----------
+  const REGION_MAP = { "서울시":"서울", "서울특별시":"서울", "대구광역시":"대구", "울산시":"울산", "울산광역시":"울산",
+    "부산광역시":"부산", "인천광역시":"인천", "대전광역시":"대전", "광주광역시":"광주", "경기도":"경기",
+    "강원특별자치도":"강원", "강원도":"강원", "전북특별자치도":"전북", "제주특별자치도":"제주", "세종특별자치시":"세종" };
+  const STORE_LIST = STORES.map(([name, addr], i) => {
+    const first = String(addr).trim().split(/\s+/)[0] || "기타";
+    const region = REGION_MAP[first] || first;
+    const shortAddr = String(addr).trim().split(/\s+/).slice(0, 3).join(" ");
+    return { i, name: String(name), addr: String(addr), region, shortAddr, hay: (name + " " + addr + " " + region).toLowerCase() };
+  });
+  const REGION_ORDER = ["서울","경기","인천","부산","대구","대전","광주","울산","세종","강원","충북","충남","전북","전남","경북","경남","제주"];
+  const regionCounts = {};
+  STORE_LIST.forEach(s => regionCounts[s.region] = (regionCounts[s.region] || 0) + 1);
+  const REGIONS = Object.keys(regionCounts).sort((a, b) => {
+    const ia = REGION_ORDER.indexOf(a), ib = REGION_ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || regionCounts[b] - regionCounts[a];
+  });
+
+  let storeRegion = "전체", storeQuery = "", storeLimit = 60;
+  const PAGE = 60;
+
+  function renderRegionChips(){
+    const box = $("#regionChips"); box.innerHTML = "";
+    [["전체", STORE_LIST.length]].concat(REGIONS.map(r => [r, regionCounts[r]])).forEach(([r, n]) => {
+      const b = el("button", "chip" + (r === storeRegion ? " on" : ""), r);
+      b.appendChild(el("small", null, String(n)));
+      b.onclick = () => { storeRegion = r; storeLimit = PAGE; renderRegionChips(); renderStores(); };
+      box.appendChild(b);
+    });
+  }
+
+  function isFav(name){ return coll.favStores.indexOf(name) >= 0; }
+  function toggleFav(name){
+    if (isFav(name)){ coll.favStores = coll.favStores.filter(x => x !== name); toast("자주 가는 곳에서 뺐어요"); }
+    else { coll.favStores.push(name); toast("☆ 자주 가는 곳에 넣었어요"); }
+    scheduleCollSave();
+    renderStores(true);
+  }
+
+  function storeRow(s){
+    const fav = isFav(s.name);
+    const row = el("div", "store" + (fav ? " fav" : ""));
+    const g = el("div", "grow");
+    g.appendChild(el("div", "sn", s.name));
+    g.appendChild(el("div", "sa", s.addr));
+    row.appendChild(g);
+    const acts = el("div", "acts");
+    const fb = el("button", "favbtn" + (fav ? " on" : ""), fav ? "★" : "☆");
+    fb.setAttribute("aria-label", fav ? "자주 가는 곳에서 빼기" : "자주 가는 곳에 넣기");
+    fb.title = "자주 가는 곳";
+    fb.onclick = () => toggleFav(s.name);
+    const a = el("a", "maplink", "지도 ↗");
+    a.href = "https://map.kakao.com/link/search/" + encodeURIComponent(s.name + " " + s.shortAddr);
+    a.target = "_blank"; a.rel = "noopener";
+    acts.append(fb, a);
+    row.appendChild(acts);
+    return row;
+  }
+
+  function renderStores(keepLimit){
+    if (!keepLimit) { /* limit already reset by callers that change the query */ }
+    const q = storeQuery.trim().toLowerCase();
+    const terms = q ? q.split(/\s+/) : [];
+    const matched = STORE_LIST.filter(s =>
+      (storeRegion === "전체" || s.region === storeRegion) && terms.every(t => s.hay.indexOf(t) >= 0));
+    const favs = matched.filter(s => isFav(s.name));
+    const rest = matched.filter(s => !isFav(s.name));
+    const list = $("#storeList"); list.innerHTML = "";
+    $("#storeCount").textContent = matched.length + "곳";
+    if (!matched.length){
+      list.appendChild(el("div", "empty", "찾는 매장이 없어요. 다른 동네 이름으로 찾아보세요."));
+      $("#storeMore").hidden = true; return;
+    }
+    if (favs.length){
+      list.appendChild(el("div", "sublabel", "★ 자주 가는 곳"));
+      favs.forEach(s => list.appendChild(storeRow(s)));
+      if (rest.length) list.appendChild(el("div", "sublabel", "다른 매장"));
+    }
+    const frag = document.createDocumentFragment();
+    rest.slice(0, storeLimit).forEach(s => frag.appendChild(storeRow(s)));
+    list.appendChild(frag);
+    const left = rest.length - Math.min(rest.length, storeLimit);
+    const more = $("#storeMore");
+    more.hidden = left <= 0;
+    more.textContent = "더 보기 (" + left + "곳 남음)";
+  }
+  $("#storeMore").onclick = () => { storeLimit += PAGE; renderStores(true); };
+  let storeInputT = null;
+  $("#storeSearch").addEventListener("input", e => {
+    clearTimeout(storeInputT);
+    storeInputT = setTimeout(() => { storeQuery = e.target.value; storeLimit = PAGE; renderStores(); }, 120);
+  });
+
+  // ---------- type chart ----------
+  const TYPES = ["노말","불꽃","물","풀","전기","얼음","격투","독","땅","비행","에스퍼","벌레","바위","고스트","드래곤","악","강철","페어리"];
+  const TCOL = {"노말":"#c8c3b0","불꽃":"#ff9a5a","물":"#6aaeff","풀":"#7ed67a","전기":"#ffd84a","얼음":"#8fe3e8","격투":"#e8826e","독":"#c58be0","땅":"#e0be72","비행":"#a9b8ff","에스퍼":"#ff8fb4","벌레":"#b8d45a","바위":"#c9b376","고스트":"#a99ae0","드래곤":"#9a97ff","악":"#b09f94","강철":"#b5c3cf","페어리":"#ffb3e0"};
+  // 공격 타입 → [효과 굉장(×2), 별로(×½), 없음(×0)]
+  const CHART = {
+    "노말":["","바위 강철","고스트"],
+    "불꽃":["풀 얼음 벌레 강철","불꽃 물 바위 드래곤",""],
+    "물":["불꽃 땅 바위","물 풀 드래곤",""],
+    "풀":["물 땅 바위","불꽃 풀 독 비행 벌레 드래곤 강철",""],
+    "전기":["물 비행","풀 전기 드래곤","땅"],
+    "얼음":["풀 땅 비행 드래곤","불꽃 물 얼음 강철",""],
+    "격투":["노말 얼음 바위 악 강철","독 비행 에스퍼 벌레 페어리","고스트"],
+    "독":["풀 페어리","독 땅 바위 고스트","강철"],
+    "땅":["불꽃 전기 독 바위 강철","풀 벌레","비행"],
+    "비행":["풀 격투 벌레","전기 바위 강철",""],
+    "에스퍼":["격투 독","에스퍼 강철","악"],
+    "벌레":["풀 에스퍼 악","불꽃 격투 독 비행 고스트 강철 페어리",""],
+    "바위":["불꽃 얼음 비행 벌레","격투 땅 강철",""],
+    "고스트":["에스퍼 고스트","악","노말"],
+    "드래곤":["드래곤","강철","페어리"],
+    "악":["에스퍼 고스트","격투 악 페어리",""],
+    "강철":["얼음 바위 페어리","불꽃 물 전기 강철",""],
+    "페어리":["격투 드래곤 악","불꽃 독 강철",""]
+  };
+  Object.keys(CHART).forEach(k => { CHART[k] = CHART[k].map(s => s ? s.split(" ") : []); });
+  function eff(a, d){
+    const c = CHART[a];
+    if (c[2].includes(d)) return 0;
+    if (c[0].includes(d)) return 2;
+    if (c[1].includes(d)) return 0.5;
+    return 1;
+  }
+  let tMode = "def", tSel = [];
+  const MULT_TXT = {4:"×4", 2:"×2", 0.5:"×½", 0.25:"×¼", 0:"×0"};
+  const DEF_LABEL = {4:"엄청 잘 먹혀요!", 2:"잘 먹혀요 (효과가 굉장해요)", 0.5:"잘 안 먹혀요", 0.25:"거의 안 먹혀요", 0:"효과가 없어요"};
+  const ATK_LABEL = {2:"이 상대에게 강해요", 0.5:"이 상대에게는 약해요", 0:"이 상대에게는 효과가 없어요"};
+  function pill(t){ const p = el("span", "tpill", t); p.style.setProperty("--tc", TCOL[t]); return p; }
+  function renderTypes(){
+    document.querySelectorAll("#typeMode button").forEach(b => b.classList.toggle("on", b.dataset.m === tMode));
+    $("#typeHint").textContent = tMode === "def"
+      ? "상대 포켓몬의 타입을 눌러요 (2개까지). 어떤 타입 기술이 잘 먹히는지 알려 줘요."
+      : "내 포켓몬 기술의 타입을 눌러요. 어떤 상대에게 강하고 약한지 알려 줘요.";
+    const box = $("#typeChips"); box.innerHTML = "";
+    TYPES.forEach(t => {
+      const b = el("button", "chip t" + (tSel.includes(t) ? " on" : ""), t);
+      b.style.setProperty("--tc", TCOL[t]);
+      b.onclick = () => {
+        const i = tSel.indexOf(t);
+        if (i >= 0) tSel.splice(i, 1);
+        else if (tMode === "atk") tSel = [t];
+        else { tSel.push(t); if (tSel.length > 2) tSel.shift(); }
+        renderTypes();
+      };
+      box.appendChild(b);
+    });
+    const res = $("#typeResult"); res.innerHTML = "";
+    if (!tSel.length){ res.appendChild(el("div", "empty", "위에서 타입을 눌러 보세요")); return; }
+    res.appendChild(el("div", "ttl", tMode === "def" ? "「" + tSel.join("·") + "」 상대에게는" : "「" + tSel[0] + "」 기술은"));
+    const groups = {};
+    if (tMode === "def"){
+      TYPES.forEach(a => { const m = tSel.reduce((p, d) => p * eff(a, d), 1); (groups[m] = groups[m] || []).push(a); });
+    } else {
+      TYPES.forEach(d => { const m = eff(tSel[0], d); (groups[m] = groups[m] || []).push(d); });
+    }
+    const order = tMode === "def" ? [4, 2, 0.5, 0.25, 0] : [2, 0.5, 0];
+    const labels = tMode === "def" ? DEF_LABEL : ATK_LABEL;
+    let shown = 0;
+    order.forEach(m => {
+      const list = groups[m]; if (!list || !list.length) return;
+      shown++;
+      const g = el("div", "tgroup" + (m < 1 ? " weak" : ""));
+      const lab = el("div", "tglabel");
+      lab.append(el("span", "mult m" + String(m).replace(".", ""), MULT_TXT[m]), el("span", null, labels[m]));
+      g.appendChild(lab);
+      const wrap = el("div"); list.forEach(t => wrap.appendChild(pill(t))); g.appendChild(wrap);
+      res.appendChild(g);
+    });
+    if (!shown) res.appendChild(el("div", "typehint", "모든 타입에 보통으로 들어가요."));
+  }
+  document.querySelectorAll("#typeMode button").forEach(b => b.onclick = () => {
+    if (tMode === b.dataset.m) return;
+    tMode = b.dataset.m; tSel = []; renderTypes();
+  });
+
+  // ---------- nav ----------
+  const VIEWS = ["home","dex","store","info","manage"];
+  document.querySelectorAll("nav [data-view]").forEach(b => b.onclick = () => {
+    document.querySelectorAll("nav [data-view]").forEach(x => x.classList.toggle("on", x === b));
+    VIEWS.forEach(v => $("#view-" + v).hidden = v !== b.dataset.view);
+    window.scrollTo(0,0);
+  });
+
+  // ---------- start ----------
+  loadLocal();
+  loadCollLocal(); collStart = startBase();
+  status.textContent = "이 기기에만 보관";
+  render();
+  renderDex();
+  renderRegionChips();
+  renderStores();
+  renderTypes();
+  initCloud();
+  // QR 도구는 따로(async) 받으므로, 다 받은 뒤 QR 그림을 다시 그린다
+  window.addEventListener("tw-img", () => {
+    document.querySelectorAll("img[data-fb]").forEach(im => { const u = pic(im.dataset.fb); if (u && im.getAttribute("src") !== u){ im.src = u; im.className = ""; } });
+    if ($("#scanOverlay").classList.contains("show")) renderScan();
+    if ($("#addOverlay").classList.contains("show") && editing && editing.id && !editing.img){
+      const c = cards.find(x => x.id === editing.id); if (c) showPreview(c.src);
+    }
+  });
+  window.addEventListener("load", () => {
+    render();
+    if ($("#scanOverlay").classList.contains("show")){ if (scanCard && scanCard.qr) scanView = "qr"; renderScan(); }
+  });
+})();
+</script>
+</body>
+</html>
